@@ -1,0 +1,11 @@
+# Visual Studio Code specific files
+.vscode/
+*.code-workspace
+
+# Build output directory
+build/
+compile_commands.json
+.cache/
+
+# macOS specific files
+.DS_Store

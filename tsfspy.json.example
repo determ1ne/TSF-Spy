@@ -1,0 +1,7 @@
+{
+  "filter": [
+    "wordpad.exe",
+    "notepad.exe",
+    "rundll32.exe"
+  ]
+}
