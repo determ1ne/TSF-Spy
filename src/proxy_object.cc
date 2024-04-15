@@ -4,7 +4,6 @@
 #include <fmt/core.h>
 
 STDAPI ProxyObject::QueryInterface(REFIID riid, void **ppvObject) {
-  auto guidString = guidToString(riid);
   if (IsEqualIID(riid, IID_ITfTextInputProcessor) || IsEqualIID(riid, IID_ITfTextInputProcessorEx) ||
       IsEqualIID(riid, IID_ITfThreadMgrEventSink) || IsEqualIID(riid, IID_ITfTextEditSink) ||
       IsEqualIID(riid, IID_ITfTextLayoutSink) || IsEqualIID(riid, IID_ITfKeyEventSink) ||
@@ -13,11 +12,11 @@ STDAPI ProxyObject::QueryInterface(REFIID riid, void **ppvObject) {
       IsEqualIID(riid, IID_ITfDisplayAttributeProvider) || IsEqualIID(riid, IID_IUnknown)) {
     *ppvObject = this;
     AddRef();
-    auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})", guidString);
+    auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})", getIIDName(riid));
     OutputDebugStringA(logContent.c_str());
     return NOERROR;
   }
-  auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})!!UNKNOWN_INTERFACE", guidString);
+  auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})!!UNKNOWN_INTERFACE", getIIDName(riid));
   OutputDebugStringA(logContent.c_str());
   *ppvObject = nullptr;
   return E_NOINTERFACE;

@@ -10,6 +10,10 @@
 
 #define STRINGIFY(x) #x
 
+namespace {
+static const GUID IID_ITfDisplayAttributeCollectionProvider = {0x3977526d, 0x1a0a, 0x435a, {0x8d, 0x06, 0xec, 0xc9, 0x51, 0x6b, 0x48, 0x4f}};
+}
+
 std::string guidToString(const GUID &guid) {
   char buf[40];
   sprintf_s(buf, sizeof(buf), "{%08X-%04X-%04X-%02X%02X-%02X%02X%02X%02X%02X%02X}", guid.Data1, guid.Data2, guid.Data3,
@@ -179,6 +183,8 @@ std::string getIIDName(REFIID riid) {
   IF_TYPE_RETURN(ITfUIElementSink) 
   IF_TYPE_RETURN(IUIManagerEventSink) 
   // IF_TYPE_RETURN(IVersionInfo)
+  
+  IF_TYPE_RETURN(ITfDisplayAttributeCollectionProvider)
 
   return guidToString(riid);
 #undef IF_TYPE_RETURN

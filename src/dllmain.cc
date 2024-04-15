@@ -34,7 +34,6 @@ STDAPI DllCanUnloadNow() {
 }
 
 STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv) {
-  OutputDebugStringA("WHAT???");
   bool failed = false;
   if (g_classFactory == nullptr) {
     EnterCriticalSection(&g_cs);

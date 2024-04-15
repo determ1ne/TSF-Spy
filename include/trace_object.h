@@ -9,7 +9,9 @@ class TraceObject :
     public ITfSource,
     public ITfKeystrokeMgr,
     public ITfCategoryMgr,
-    public ITfLangBarItemMgr
+    public ITfLangBarItemMgr,
+    public ITfCompartmentMgr,
+    public ITfUIElementMgr
 /*clang-format on*/
 {
 public:
@@ -86,6 +88,18 @@ public:
                         ULONG *pcFetched);
   STDMETHODIMP AdviseItemsSink(ULONG ulCount, ITfLangBarItemSink **ppunk, const GUID *pguidItem, DWORD *pdwCookie);
   STDMETHODIMP UnadviseItemsSink(ULONG ulCount, DWORD *pdwCookie);
+
+  /* ITfCompartmentMgr */
+  STDMETHODIMP GetCompartment( REFGUID rguid,  ITfCompartment **ppcomp);
+  STDMETHODIMP ClearCompartment(TfClientId tid,  REFGUID rguid);
+  STDMETHODIMP EnumCompartments( IEnumGUID **ppEnum);
+
+  /* ITfUIElementMgr */
+  STDMETHODIMP BeginUIElement(ITfUIElement *pElement, BOOL *pbShow, DWORD *pdwUIElementId);
+  STDMETHODIMP UpdateUIElement(DWORD dwUIElementId);
+  STDMETHODIMP EndUIElement(DWORD dwUIElementId);
+  STDMETHODIMP GetUIElement(DWORD dwUIELementId, ITfUIElement **ppElement);
+  STDMETHODIMP EnumUIElements(IEnumTfUIElements **ppEnum);
 
   /* other functions */
   void *castAs(REFIID riid);

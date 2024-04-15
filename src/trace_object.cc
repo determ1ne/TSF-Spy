@@ -35,6 +35,8 @@ bool isIIDSupported(REFIID riid) {
     || IsEqualIID(riid, IID_ITfKeystrokeMgr)
     || IsEqualIID(riid, IID_ITfCategoryMgr)
     || IsEqualIID(riid, IID_ITfLangBarItemMgr)
+    || IsEqualIID(riid, IID_ITfCompartmentMgr)
+    || IsEqualIID(riid, IID_ITfUIElementMgr)
       /* clang-format on */
   ) {
     return true;
@@ -55,6 +57,8 @@ void *TraceObject::castAs(REFIID riid) {
   SUPPORT_INTERFACE(ITfKeystrokeMgr)
   SUPPORT_INTERFACE(ITfCategoryMgr)
   SUPPORT_INTERFACE(ITfLangBarItemMgr)
+  SUPPORT_INTERFACE(ITfCompartmentMgr)
+  SUPPORT_INTERFACE(ITfUIElementMgr)
 
   return nullptr;
 #undef SUPPORT_INTERFACE
@@ -462,6 +466,75 @@ STDMETHODIMP TraceObject::UnadviseItemsSink(
   return hr;
 }
 #pragma endregion ITfLangBarItemMgr
+
+#pragma region ITfCompartmentMgr
+
+STDMETHODIMP TraceObject::GetCompartment(
+    /* [in] */ REFGUID rguid,
+    /* [out] */ ITfCompartment **ppcomp) {
+  auto hr = ((ITfCompartmentMgr *)object_)->GetCompartment(rguid, ppcomp);
+  log(LogType::Common, "ITfCompartmentMgr", "GetCompartment", "({}, _)->{:x}", guidToString(rguid), hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::ClearCompartment(
+    /* [in] */ TfClientId tid,
+    /* [in] */ REFGUID rguid) {
+  auto hr = ((ITfCompartmentMgr *)object_)->ClearCompartment(tid, rguid);
+  log(LogType::Common, "ITfCompartmentMgr", "ClearCompartment", "({:x}, {})->{:x}", tid, guidToString(rguid), hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::EnumCompartments(
+    /* [out] */ IEnumGUID **ppEnum) {
+  auto hr = ((ITfCompartmentMgr *)object_)->EnumCompartments(ppEnum);
+  log(LogType::Common, "ITfCompartmentMgr", "EnumCompartments", "(_)->{:x}", hr);
+  return hr;
+}
+
+#pragma endregion ITfCompartmentMgr
+
+#pragma region ITfUIElementMgr
+STDMETHODIMP TraceObject::BeginUIElement(
+    /* [in] */ ITfUIElement *pElement,
+    /* [out][in] */ BOOL *pbShow,
+    /* [out] */ DWORD *pdwUIElementId) {
+  auto hr = ((ITfUIElementMgr *)object_)->BeginUIElement(pElement, pbShow, pdwUIElementId);
+  log(LogType::Common, "ITfUIElementMgr", "BeginUIElement", "({}, {}, _)->{:x}", fmt::ptr(pElement), intToBool(*pbShow),
+      *pdwUIElementId, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::UpdateUIElement(
+    /* [in] */ DWORD dwUIElementId) {
+  auto hr = ((ITfUIElementMgr *)object_)->UpdateUIElement(dwUIElementId);
+  log(LogType::Common, "ITfUIElementMgr", "UpdateUIElement", "({:x})->{:x}", dwUIElementId, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::EndUIElement(
+    /* [in] */ DWORD dwUIElementId) {
+  auto hr = ((ITfUIElementMgr *)object_)->EndUIElement(dwUIElementId);
+  log(LogType::Common, "ITfUIElementMgr", "EndUIElement", "({:x})->{:x}", dwUIElementId, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetUIElement(
+    /* [in] */ DWORD dwUIELementId,
+    /* [out] */ ITfUIElement **ppElement) {
+  auto hr = ((ITfUIElementMgr *)object_)->GetUIElement(dwUIELementId, ppElement);
+  log(LogType::Common, "ITfUIElementMgr", "GetUIElement", "({:x}, _)->{:x}", dwUIELementId, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::EnumUIElements(
+    /* [out] */ IEnumTfUIElements **ppEnum) {
+  auto hr = ((ITfUIElementMgr *)object_)->EnumUIElements(ppEnum);
+  log(LogType::Common, "ITfUIElementMgr", "EnumUIElements", "(_)->{:x}", hr);
+  return hr;
+}
+
+#pragma endregion ITfUIElementMgr
 
 #pragma region Detours
 
