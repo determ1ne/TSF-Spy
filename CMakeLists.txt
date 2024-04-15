@@ -8,11 +8,12 @@ endif()
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED 17)
 add_subdirectory(vendor/fmt)
+add_subdirectory(vendor/detours)
 
 file(GLOB_RECURSE SOURCES "src/*.cc")
 # add_executable(tsfspy ${SOURCES})
 add_library(tsfspy SHARED ${SOURCES})
 target_include_directories(tsfspy PRIVATE "include")
 
-target_link_libraries(tsfspy fmt::fmt)
+target_link_libraries(tsfspy fmt::fmt detours)
 set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /DEF:tsfspy.def")
