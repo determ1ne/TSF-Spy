@@ -8,7 +8,8 @@ class TraceObject :
     public ITfThreadMgr,
     public ITfSource,
     public ITfKeystrokeMgr,
-    public ITfCategoryMgr
+    public ITfCategoryMgr,
+    public ITfLangBarItemMgr
 /*clang-format on*/
 {
 public:
@@ -71,7 +72,24 @@ public:
   STDMETHODIMP GetGUID(TfGuidAtom guidatom, GUID *pguid);
   STDMETHODIMP IsEqualTfGuidAtom(TfGuidAtom guidatom, REFGUID rguid, BOOL *pfEqual);
 
+  /* ITfLangBarItemMgr */
+  STDMETHODIMP EnumItems(IEnumTfLangBarItems **ppEnum);
+  STDMETHODIMP GetItem(REFGUID rguid, ITfLangBarItem **ppItem);
+  STDMETHODIMP AddItem(ITfLangBarItem *punk);
+  STDMETHODIMP RemoveItem(ITfLangBarItem *punk);
+  STDMETHODIMP AdviseItemSink(ITfLangBarItemSink *punk, DWORD *pdwCookie, REFGUID rguidItem);
+  STDMETHODIMP UnadviseItemSink(DWORD dwCookie);
+  STDMETHODIMP GetItemFloatingRect(DWORD dwThreadId, REFGUID rguid, RECT *prc);
+  STDMETHODIMP GetItemsStatus(ULONG ulCount, const GUID *prgguid, DWORD *pdwStatus);
+  STDMETHODIMP GetItemNum(ULONG *pulCount);
+  STDMETHODIMP GetItems(ULONG ulCount, ITfLangBarItem **ppItem, TF_LANGBARITEMINFO *pInfo, DWORD *pdwStatus,
+                        ULONG *pcFetched);
+  STDMETHODIMP AdviseItemsSink(ULONG ulCount, ITfLangBarItemSink **ppunk, const GUID *pguidItem, DWORD *pdwCookie);
+  STDMETHODIMP UnadviseItemsSink(ULONG ulCount, DWORD *pdwCookie);
+
+  /* other functions */
   void *castAs(REFIID riid);
+
 private:
   void *object_;
   void *proxyObject_;

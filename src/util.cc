@@ -192,3 +192,7 @@ std::string getCLSIDName(REFCLSID rclsid) {
   return guidToString(rclsid);
 #undef IF_TYPE_RETURN
 }
+
+bool shouldLogContent(LogType logType, std::string_view objectClass, std::string_view funcName) {
+  return true;
+}

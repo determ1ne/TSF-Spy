@@ -34,6 +34,7 @@ bool isIIDSupported(REFIID riid) {
     || IsEqualIID(riid, IID_ITfSource)
     || IsEqualIID(riid, IID_ITfKeystrokeMgr)
     || IsEqualIID(riid, IID_ITfCategoryMgr)
+    || IsEqualIID(riid, IID_ITfLangBarItemMgr)
       /* clang-format on */
   ) {
     return true;
@@ -53,6 +54,7 @@ void *TraceObject::castAs(REFIID riid) {
   SUPPORT_INTERFACE(ITfSource)
   SUPPORT_INTERFACE(ITfKeystrokeMgr)
   SUPPORT_INTERFACE(ITfCategoryMgr)
+  SUPPORT_INTERFACE(ITfLangBarItemMgr)
 
   return nullptr;
 #undef SUPPORT_INTERFACE
@@ -271,93 +273,94 @@ STDMETHODIMP TraceObject::SimulatePreservedKey(ITfContext *pic, REFGUID rguid, B
 #pragma endregion ITfKeystrokeMgr
 
 #pragma region ITfCategoryMgr
-STDMETHODIMP TraceObject::RegisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid){
+STDMETHODIMP TraceObject::RegisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid) {
   auto hr = ((ITfCategoryMgr *)object_)->RegisterCategory(rclsid, rcatid, rguid);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterCategory({}, {}, {})->{:x}", guidToString(rclsid),
                                 guidToString(rcatid), guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::UnregisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid){
+STDMETHODIMP TraceObject::UnregisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid) {
   auto hr = ((ITfCategoryMgr *)object_)->UnregisterCategory(rclsid, rcatid, rguid);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::UnregisterCategory({}, {}, {})->{:x}", guidToString(rclsid),
                                 guidToString(rcatid), guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::EnumCategoriesInItem(REFGUID rguid, IEnumGUID **ppEnum){
+STDMETHODIMP TraceObject::EnumCategoriesInItem(REFGUID rguid, IEnumGUID **ppEnum) {
   auto hr = ((ITfCategoryMgr *)object_)->EnumCategoriesInItem(rguid, ppEnum);
-  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::EnumCategoriesInItem({}, _)->{:x}", guidToString(rguid), hr);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfCategoryMgr::EnumCategoriesInItem({}, _)->{:x}", guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::EnumItemsInCategory(REFGUID rcatid, IEnumGUID **ppEnum){
+STDMETHODIMP TraceObject::EnumItemsInCategory(REFGUID rcatid, IEnumGUID **ppEnum) {
   auto hr = ((ITfCategoryMgr *)object_)->EnumItemsInCategory(rcatid, ppEnum);
-  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::EnumItemsInCategory({}, _)->{:x}", guidToString(rcatid), hr);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfCategoryMgr::EnumItemsInCategory({}, _)->{:x}", guidToString(rcatid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::FindClosestCategory(REFGUID rguid, GUID *pcatid, const GUID **ppcatidList, ULONG ulCount){
+STDMETHODIMP TraceObject::FindClosestCategory(REFGUID rguid, GUID *pcatid, const GUID **ppcatidList, ULONG ulCount) {
   auto hr = ((ITfCategoryMgr *)object_)->FindClosestCategory(rguid, pcatid, ppcatidList, ulCount);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::FindClosestCategory({}, {}, _, {})->{:x}",
                                 guidToString(rguid), guidToString(pcatid), ulCount, hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::RegisterGUIDDescription(REFCLSID rclsid, REFGUID rguid, const WCHAR *pchDesc, ULONG cch){
+STDMETHODIMP TraceObject::RegisterGUIDDescription(REFCLSID rclsid, REFGUID rguid, const WCHAR *pchDesc, ULONG cch) {
   auto hr = ((ITfCategoryMgr *)object_)->RegisterGUIDDescription(rclsid, rguid, pchDesc, cch);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterGUIDDescription({}, {}, {}, {})->{:x}",
                                 guidToString(rclsid), guidToString(rguid), rawWstr{pchDesc}, cch, hr);
-                                OutputDebugStringA(logContent.c_str());
+  OutputDebugStringA(logContent.c_str());
   return hr;
-
 }
-STDMETHODIMP TraceObject::UnregisterGUIDDescription(REFCLSID rclsid, REFGUID rguid){
+STDMETHODIMP TraceObject::UnregisterGUIDDescription(REFCLSID rclsid, REFGUID rguid) {
   auto hr = ((ITfCategoryMgr *)object_)->UnregisterGUIDDescription(rclsid, rguid);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::UnregisterGUIDDescription({}, {})->{:x}",
                                 guidToString(rclsid), guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::GetGUIDDescription(REFGUID rguid, BSTR *pbstrDesc){
+STDMETHODIMP TraceObject::GetGUIDDescription(REFGUID rguid, BSTR *pbstrDesc) {
   auto hr = ((ITfCategoryMgr *)object_)->GetGUIDDescription(rguid, pbstrDesc);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::GetGUIDDescription({}, _)->{:x}", guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::RegisterGUIDDWORD(REFCLSID rclsid, REFGUID rguid, DWORD dw){
+STDMETHODIMP TraceObject::RegisterGUIDDWORD(REFCLSID rclsid, REFGUID rguid, DWORD dw) {
   auto hr = ((ITfCategoryMgr *)object_)->RegisterGUIDDWORD(rclsid, rguid, dw);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterGUIDDWORD({}, {}, {})->{:x}", guidToString(rclsid),
                                 guidToString(rguid), dw, hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::UnregisterGUIDDWORD(REFCLSID rclsid, REFGUID rguid){
+STDMETHODIMP TraceObject::UnregisterGUIDDWORD(REFCLSID rclsid, REFGUID rguid) {
   auto hr = ((ITfCategoryMgr *)object_)->UnregisterGUIDDWORD(rclsid, rguid);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::UnregisterGUIDDWORD({}, {})->{:x}", guidToString(rclsid),
                                 guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::GetGUIDDWORD(REFGUID rguid, DWORD *pdw){
+STDMETHODIMP TraceObject::GetGUIDDWORD(REFGUID rguid, DWORD *pdw) {
   auto hr = ((ITfCategoryMgr *)object_)->GetGUIDDWORD(rguid, pdw);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::GetGUIDDWORD({}, _)->{:x}", guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::RegisterGUID(REFGUID rguid, TfGuidAtom *pguidatom){
+STDMETHODIMP TraceObject::RegisterGUID(REFGUID rguid, TfGuidAtom *pguidatom) {
   auto hr = ((ITfCategoryMgr *)object_)->RegisterGUID(rguid, pguidatom);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterGUID({}, _)->{:x}", guidToString(rguid), hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::GetGUID(TfGuidAtom guidatom, GUID *pguid){
+STDMETHODIMP TraceObject::GetGUID(TfGuidAtom guidatom, GUID *pguid) {
   auto hr = ((ITfCategoryMgr *)object_)->GetGUID(guidatom, pguid);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::GetGUID({}, _)->{:x}", guidatom, hr);
   OutputDebugStringA(logContent.c_str());
   return hr;
 }
-STDMETHODIMP TraceObject::IsEqualTfGuidAtom(TfGuidAtom guidatom, REFGUID rguid, BOOL *pfEqual){
+STDMETHODIMP TraceObject::IsEqualTfGuidAtom(TfGuidAtom guidatom, REFGUID rguid, BOOL *pfEqual) {
   auto hr = ((ITfCategoryMgr *)object_)->IsEqualTfGuidAtom(guidatom, rguid, pfEqual);
   auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::IsEqualTfGuidAtom({}, {}, {})->{:x}", guidatom,
                                 guidToString(rguid), intToBool(*pfEqual), hr);
@@ -365,6 +368,100 @@ STDMETHODIMP TraceObject::IsEqualTfGuidAtom(TfGuidAtom guidatom, REFGUID rguid, 
   return hr;
 }
 #pragma endregion ITfCategoryMgr
+
+#pragma region ITfLangBarItemMgr
+STDMETHODIMP TraceObject::EnumItems(
+    /* [out] */ IEnumTfLangBarItems **ppEnum) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->EnumItems(ppEnum);
+  log(LogType::Common, "ITfLangBarItemMgr", "EnumItems", "(_)->{:x}", hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::GetItem(
+    /* [in] */ REFGUID rguid,
+    /* [out] */ ITfLangBarItem **ppItem) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->GetItem(rguid, ppItem);
+  log(LogType::Common, "ITfLangBarItemMgr", "GetItem", "({}, _)->{:x}", guidToString(rguid), hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::AddItem(
+    /* [in] */ ITfLangBarItem *punk) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->AddItem(punk);
+  log(LogType::Common, "ITfLangBarItemMgr", "AddItem", "(_)->{:x}", hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::RemoveItem(
+    /* [in] */ ITfLangBarItem *punk) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->RemoveItem(punk);
+  log(LogType::Common, "ITfLangBarItemMgr", "RemoveItem", "(_)->{:x}", hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::AdviseItemSink(
+    /* [in] */ ITfLangBarItemSink *punk,
+    /* [out] */ DWORD *pdwCookie,
+    /* [in] */ REFGUID rguidItem) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->AdviseItemSink(punk, pdwCookie, rguidItem);
+  log(LogType::Common, "ITfLangBarItemMgr", "AdviseItemSink", "({}, {:x}, {})->{:x}", fmt::ptr(punk), *pdwCookie,
+      guidToString(rguidItem), hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::UnadviseItemSink(
+    /* [in] */ DWORD dwCookie) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->UnadviseItemSink(dwCookie);
+  log(LogType::Common, "ITfLangBarItemMgr", "UnadviseItemSink", "({:x})->{:x}", dwCookie, hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::GetItemFloatingRect(
+    /* [in] */ DWORD dwThreadId,
+    /* [in] */ REFGUID rguid,
+    /* [out] */ RECT *prc) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->GetItemFloatingRect(dwThreadId, rguid, prc);
+  log(LogType::Common, "ITfLangBarItemMgr", "GetItemFloatingRect", "({:x}, {}, _)->{:x}", dwThreadId,
+      guidToString(rguid), hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::GetItemsStatus(
+    /* [in] */ ULONG ulCount,
+    /* [size_is(ulCount)][in] */ const GUID *prgguid,
+    /* [size_is(ulCount)][out] */ DWORD *pdwStatus) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->GetItemsStatus(ulCount, prgguid, pdwStatus);
+  log(LogType::Common, "ITfLangBarItemMgr", "GetItemsStatus", "({}, {}, _)->{:x}", ulCount, guidToString(prgguid), hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::GetItemNum(
+    /* [out] */ ULONG *pulCount) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->GetItemNum(pulCount);
+  log(LogType::Common, "ITfLangBarItemMgr", "GetItemNum", "(_)->{:x}", *pulCount, hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::GetItems(
+    /* [in] */ ULONG ulCount,
+    /* [length_is(ulCount)][size_is(*pcFetched)][out] */ ITfLangBarItem **ppItem,
+    /* [length_is(ulCount)][size_is(*pcFetched)][out] */ TF_LANGBARITEMINFO *pInfo,
+    /* [length_is(ulCount)][size_is(*pcFetched)][out] */ DWORD *pdwStatus,
+    /* [unique][out][in] */ ULONG *pcFetched) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->GetItems(ulCount, ppItem, pInfo, pdwStatus, pcFetched);
+  log(LogType::Common, "ITfLangBarItemMgr", "GetItems", "({}, {}, {}, {}, _)->{:x}", ulCount, fmt::ptr(ppItem),
+      fmt::ptr(pInfo), fmt::ptr(pdwStatus), hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::AdviseItemsSink(
+    /* [in] */ ULONG ulCount,
+    /* [size_is(ulCount)][in] */ ITfLangBarItemSink **ppunk,
+    /* [size_is(ulCount)][in] */ const GUID *pguidItem,
+    /* [size_is(ulCount)][out] */ DWORD *pdwCookie) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->AdviseItemsSink(ulCount, ppunk, pguidItem, pdwCookie);
+  log(LogType::Common, "ITfLangBarItemMgr", "AdviseItemsSink", "({}, {}, {}, _)->{:x}", ulCount, fmt::ptr(ppunk),
+      guidToString(pguidItem), hr);
+  return hr;
+}
+STDMETHODIMP TraceObject::UnadviseItemsSink(
+    /* [in] */ ULONG ulCount,
+    /* [size_is(ulCount)][in] */ DWORD *pdwCookie) {
+  auto hr = ((ITfLangBarItemMgr *)object_)->UnadviseItemsSink(ulCount, pdwCookie);
+  log(LogType::Common, "ITfLangBarItemMgr", "UnadviseItemsSink", "({}, _)->{:x}", ulCount, hr);
+  return hr;
+}
+#pragma endregion ITfLangBarItemMgr
 
 #pragma region Detours
 
