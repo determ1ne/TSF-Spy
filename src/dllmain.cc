@@ -1,15 +1,16 @@
-#include <fstream>
-#include <string>
-#include <vector>
 #include "class_factory.h"
 #include "dllglobals.h"
 #include "nlohmann/json.hpp"
-#include "util.h"
+#include "trace_object.h"
+#include <fstream>
+#include <string>
+#include <vector>
+
 
 #define _CRT_SECURE_NO_WARNINGS
 
 using json = nlohmann::json;
-using DllGetClassObjectType = HRESULT (__stdcall *)(REFCLSID rclsid, REFIID riid, LPVOID *ppv);
+using DllGetClassObjectType = HRESULT(__stdcall *)(REFCLSID rclsid, REFIID riid, LPVOID *ppv);
 
 const wchar_t c_overrideText[] = L".override";
 
@@ -42,7 +43,7 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv) {
         OutputDebugStringA("TSFSPY: TSF GetClassObject not found");
         failed = true;
       } else {
-        LPVOID pv = nullptr; 
+        LPVOID pv = nullptr;
         auto tsfClassFactory = g_tsfGetClassObject(rclsid, riid, &pv);
         if (tsfClassFactory != S_OK) {
           OutputDebugStringA("TSFSPY: TSF GetClassObject failed");
@@ -66,8 +67,7 @@ STDAPI DllGetClassObject(REFCLSID rclsid, REFIID riid, LPVOID *ppv) {
   return CLASS_E_CLASSNOTAVAILABLE;
 }
 
-__declspec(dllexport)
-BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID pvReserved) {
+__declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID pvReserved) {
   switch (dwReason) {
   case DLL_PROCESS_ATTACH: {
     g_hInstance = hInstance;
@@ -75,41 +75,22 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID pvReserved) {
       return FALSE;
     }
 
-    // Load original dll
     wchar_t buffer[4096];
     char *pBuffer = reinterpret_cast<char *>(buffer);
-    auto fileNameSize = GetModuleFileNameW(hInstance, buffer, ARRAYSIZE(buffer) - 1);
-    if (fileNameSize <= 0 || fileNameSize + ARRAYSIZE(c_overrideText) > ARRAYSIZE(buffer)) {
-      OutputDebugStringW(L"TSFSPY: file path too long");
-      return false;
-    }
-    for (int i = 0; i < ARRAYSIZE(c_overrideText); ++i) {
-      buffer[fileNameSize + i] = c_overrideText[i];
-    }
-    g_hTsfDll = LoadLibraryW(buffer);
-    if (!g_hInstance) {
-      OutputDebugStringW(L"TSFSPY: failed to load original dll");
-      return false;
-    }
-    g_tsfGetClassObject = reinterpret_cast<DllGetClassObjectType>(GetProcAddress(g_hTsfDll, "DllGetClassObject"));
-    if (!g_tsfGetClassObject) {
-      OutputDebugStringW(L"TSFSPY: DllGetClassObject entry point not found");
-      return false;
-    }
 
     // Get current host process name
     auto exePathSize = GetModuleFileNameA(NULL, pBuffer, ARRAYSIZE(buffer) * sizeof(wchar_t) / sizeof(char) - 1);
     if (exePathSize <= 0) {
       OutputDebugStringW(L"TSFSPY: failed to get exe path");
-      return true;
+      return TRUE;
     }
-    auto exePath = std::string(pBuffer, exePathSize+1);
+    auto exePath = std::string(pBuffer, exePathSize + 1);
 
     // Load config path
     std::ifstream configFile("C:/tsfspy.json");
     if (!configFile.is_open()) {
       OutputDebugStringW(L"TSFSPY: failed to open config file");
-      return true;
+      return TRUE;
     }
     json data = json::parse(configFile);
 
@@ -123,12 +104,43 @@ BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, LPVOID pvReserved) {
       }
     } catch (json::out_of_range &e) {
       OutputDebugStringW(L"TSFSPY: filter not found in config file");
-      return true;
+      return TRUE;
     }
 
     if (g_enabled) {
+
+      if (!hookCoCreateInstance()) {
+        OutputDebugStringW(L"TSFSPY: failed to hook CoCreateInstance");
+        restoreCoCreateInstance();
+        return FALSE;
+      }
+
+      // Load original dll
+      auto fileNameSize = GetModuleFileNameW(hInstance, buffer, ARRAYSIZE(buffer) - 1);
+      if (fileNameSize <= 0 || fileNameSize + ARRAYSIZE(c_overrideText) > ARRAYSIZE(buffer)) {
+        OutputDebugStringW(L"TSFSPY: file path too long");
+        return FALSE;
+      }
+      for (int i = 0; i < ARRAYSIZE(c_overrideText); ++i) {
+        buffer[fileNameSize + i] = c_overrideText[i];
+      }
+      g_hTsfDll = LoadLibraryW(buffer);
+      if (!g_hInstance) {
+        OutputDebugStringW(L"TSFSPY: failed to load original dll");
+        return FALSE;
+      }
+      g_tsfGetClassObject = reinterpret_cast<DllGetClassObjectType>(GetProcAddress(g_hTsfDll, "DllGetClassObject"));
+      if (!g_tsfGetClassObject) {
+        auto err = GetLastError();
+        OutputDebugStringW(L"TSFSPY: DllGetClassObject entry point not found");
+        return FALSE;
+      }
       OutputDebugStringW(L"TSFSPY: TSF Spy loaded");
+
+      return TRUE;
     }
+
+    return FALSE;
     break;
   }
   case DLL_PROCESS_DETACH:

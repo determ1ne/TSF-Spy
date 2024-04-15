@@ -1,27 +1,86 @@
 #include "trace_object.h"
 #include "util.h"
+#include <detours.h>
 #include <fmt/core.h>
+#include <fmt/format.h>
+#include <windows.h>
+
+// {63D45364-7291-4789-BF12-F5F50D68FB8C}
+static const GUID IID_ITraceObject = {0x63d45364, 0x7291, 0x4789, {0xbf, 0x12, 0xf5, 0xf5, 0xd, 0x68, 0xfb, 0x8c}};
+constexpr HRESULT E_TRACE_ALREADY_SET = 0xDEADBEEF;
+
+// helpers
+inline bool intToBool(BOOL i) { return i != FALSE; }
+auto format_as(const TF_PRESERVEDKEY &preKey) {
+  return fmt::format("TF_PRESERVEDKEY{{uVKey: {:x}, uModifiers: {:x}}}", preKey.uVKey, preKey.uModifiers);
+}
+struct rawWstr {
+  const WCHAR *str;
+};
+auto format_as(const rawWstr &w) {
+  if (w.str == nullptr)
+    return std::string();
+  int srcLen = wcslen(w.str);
+  int len = WideCharToMultiByte(CP_UTF8, 0, w.str, srcLen, 0, 0, NULL, NULL);
+  std::unique_ptr<char[]> buf(new char[len + 1]);
+  WideCharToMultiByte(CP_UTF8, 0, w.str, srcLen, buf.get(), len, NULL, NULL);
+  return fmt::format("\"&{}\"", std::string_view(buf.get(), len));
+}
 
 bool isIIDSupported(REFIID riid) {
-  if (IsEqualIID(riid, IID_IUnknown) || IsEqualIID(riid, IID_ITfThreadMgr)) {
+  if (IsEqualIID(riid, IID_IUnknown)
+      /* clang-format off */
+    || IsEqualIID(riid, IID_ITfThreadMgr) 
+    || IsEqualIID(riid, IID_ITfSource)
+    || IsEqualIID(riid, IID_ITfKeystrokeMgr)
+    || IsEqualIID(riid, IID_ITfCategoryMgr)
+      /* clang-format on */
+  ) {
     return true;
   }
   return false;
 }
 
-// IUnknown
+void *TraceObject::castAs(REFIID riid) {
+#define SUPPORT_INTERFACE(Interface)                                                                                   \
+  if (IsEqualIID(riid, IID_##Interface)) {                                                                             \
+    return (Interface *)this;                                                                                          \
+  }
+  if (IsEqualIID(riid, IID_IUnknown))
+    return (ITfThreadMgr *)this;
+
+  SUPPORT_INTERFACE(ITfThreadMgr)
+  SUPPORT_INTERFACE(ITfSource)
+  SUPPORT_INTERFACE(ITfKeystrokeMgr)
+  SUPPORT_INTERFACE(ITfCategoryMgr)
+
+  return nullptr;
+#undef SUPPORT_INTERFACE
+}
+
+#pragma region IUnknown
 STDMETHODIMP TraceObject::QueryInterface(REFIID riid, void **ppvObject) {
   if (ppvObject == nullptr) {
     return E_INVALIDARG;
   }
   *ppvObject = nullptr;
 
-  auto hr = tsfObject_->QueryInterface(riid, ppvObject);
+  // check if the object already has a trace object
+  if (IsEqualIID(riid, IID_ITraceObject)) {
+    *ppvObject = this;
+    return E_TRACE_ALREADY_SET;
+  }
+  auto hr = ((IUnknown *)object_)->QueryInterface(IID_ITraceObject, ppvObject);
+  bool isTraceObject = hr == E_TRACE_ALREADY_SET;
+
+  hr = ((IUnknown *)object_)->QueryInterface(riid, ppvObject);
   auto logContent =
-      fmt::format("TSFSPY: [T]{}::QueryInterface({}, _)->{:x}", interfaceType_, getIIDName(riid), (long)hr);
-  if (hr == S_OK && isIIDSupported(riid)) {
-    if (isIIDSupported(riid)) {
-      *ppvObject = new TraceObject((IUnknown *)*ppvObject, proxyObject_, getIIDName(riid));
+      fmt::format("TSFSPY: [C]{}::QueryInterface({}, _)->{:x}", interfaceType_, getIIDName(riid), (long)hr);
+  if (hr == S_OK) {
+    if (isTraceObject) {
+      // do nothing
+    } else if (isIIDSupported(riid)) {
+      *ppvObject = (new TraceObject(*ppvObject, proxyObject_, getIIDName(riid)))->castAs(riid);
     } else {
       logContent += "!!UNSUPPORTED_INTERFACE";
     }
@@ -31,63 +90,351 @@ STDMETHODIMP TraceObject::QueryInterface(REFIID riid, void **ppvObject) {
   return hr;
 }
 
-STDMETHODIMP_(ULONG) TraceObject::AddRef() { return tsfObject_->AddRef(); }
+STDMETHODIMP_(ULONG) TraceObject::AddRef() { return ((IUnknown *)object_)->AddRef(); }
+STDMETHODIMP_(ULONG) TraceObject::Release() { return ((IUnknown *)object_)->Release(); }
+#pragma endregion IUnknown
 
-STDMETHODIMP_(ULONG) TraceObject::Release() { return tsfObject_->Release(); }
-
-// ITfThreadMgr
+#pragma region ITfThreadMgr
 STDMETHODIMP TraceObject::Activate(TfClientId *ptid) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::Activate({:x})", (DWORD)*ptid);
+  auto hr = ((ITfThreadMgr *)object_)->Activate(ptid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::Activate({:x})->{:x}", (DWORD)*ptid, hr);
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->Activate(ptid);
+  return hr;
 }
 STDMETHODIMP TraceObject::Deactivate(void) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::Deactivate()");
+  auto hr = ((ITfThreadMgr *)object_)->Deactivate();
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::Deactivate()->{:x}", hr);
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->Deactivate();
+  return hr;
 }
 STDMETHODIMP TraceObject::CreateDocumentMgr(ITfDocumentMgr **ppdim) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::CreateDocumentMgr(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::CreateDocumentMgr(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->CreateDocumentMgr(ppdim);
+  return ((ITfThreadMgr *)object_)->CreateDocumentMgr(ppdim);
 }
 STDMETHODIMP TraceObject::EnumDocumentMgrs(IEnumTfDocumentMgrs **ppEnum) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::EnumDocumentMgrs(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::EnumDocumentMgrs(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->EnumDocumentMgrs(ppEnum);
+  return ((ITfThreadMgr *)object_)->EnumDocumentMgrs(ppEnum);
 }
 STDMETHODIMP TraceObject::GetFocus(ITfDocumentMgr **ppdimFocus) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::GetFocus(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::GetFocus(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->GetFocus(ppdimFocus);
+  return ((ITfThreadMgr *)object_)->GetFocus(ppdimFocus);
 }
 STDMETHODIMP TraceObject::SetFocus(ITfDocumentMgr *pdimFocus) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::SetFocus(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::SetFocus(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->SetFocus(pdimFocus);
+  return ((ITfThreadMgr *)object_)->SetFocus(pdimFocus);
 }
 STDMETHODIMP TraceObject::AssociateFocus(HWND hwnd, ITfDocumentMgr *pdimNew, ITfDocumentMgr **ppdimPrev) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::AssociateFocus({:x}, _, _)", (void *)hwnd);
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::AssociateFocus({:x}, _, _)", fmt::ptr(hwnd));
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->AssociateFocus(hwnd, pdimNew, ppdimPrev);
+  return ((ITfThreadMgr *)object_)->AssociateFocus(hwnd, pdimNew, ppdimPrev);
 }
 STDMETHODIMP TraceObject::IsThreadFocus(BOOL *pfThreadFocus) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::IsThreadFocus(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::IsThreadFocus(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->IsThreadFocus(pfThreadFocus);
+  return ((ITfThreadMgr *)object_)->IsThreadFocus(pfThreadFocus);
 }
 STDMETHODIMP TraceObject::GetFunctionProvider(REFCLSID clsid, ITfFunctionProvider **ppFuncProv) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::GetFunctionProvider({}, _)", guidToString(clsid));
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::GetFunctionProvider({}, _)", guidToString(clsid));
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->GetFunctionProvider(clsid, ppFuncProv);
+  return ((ITfThreadMgr *)object_)->GetFunctionProvider(clsid, ppFuncProv);
 }
 STDMETHODIMP TraceObject::EnumFunctionProviders(IEnumTfFunctionProviders **ppEnum) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::EnumFunctionProviders(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::EnumFunctionProviders(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->EnumFunctionProviders(ppEnum);
+  return ((ITfThreadMgr *)object_)->EnumFunctionProviders(ppEnum);
 }
 STDMETHODIMP TraceObject::GetGlobalCompartment(ITfCompartmentMgr **ppCompMgr) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgr::GetGlobalCompartment(_)");
+  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::GetGlobalCompartment(_)");
   OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)tsfObject_)->GetGlobalCompartment(ppCompMgr);
+  return ((ITfThreadMgr *)object_)->GetGlobalCompartment(ppCompMgr);
 }
+#pragma endregion ITfThreadMgr
+
+#pragma region ITfSource
+STDMETHODIMP TraceObject::AdviseSink(REFIID riid, IUnknown *punk, DWORD *pdwCookie) {
+  auto hr = ((ITfSource *)object_)->AdviseSink(riid, punk, pdwCookie);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfSource::AdviseSink({}, _, {:x})->{:x}", getIIDName(riid), *pdwCookie, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::UnadviseSink(DWORD dwCookie) {
+  auto hr = ((ITfSource *)object_)->UnadviseSink(dwCookie);
+  auto logContent = fmt::format("TSFSPY: [C]ITfSource::UnadviseSink({:x})->{:x}", dwCookie, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+#pragma endregion ITfSource
+
+#pragma region ITfKeystrokeMgr
+STDMETHODIMP TraceObject::AdviseKeyEventSink(TfClientId tid, ITfKeyEventSink *pSink, BOOL fForeground) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->AdviseKeyEventSink(tid, pSink, fForeground);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::AdviseKeyEventSink({:x}, {}, {})->{:x}", tid,
+                                fmt::ptr(pSink), intToBool(fForeground), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::UnadviseKeyEventSink(TfClientId tid) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->UnadviseKeyEventSink(tid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::UnadviseKeyEventSink({:x})->{:x}", tid, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::GetForeground(CLSID *pclsid) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->GetForeground(pclsid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::GetForeground({})->{:x}", guidToString(pclsid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::TestKeyDown(WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->TestKeyDown(wParam, lParam, pfEaten);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::TestKeyDown({:x}, {:x}, {})->{:x}", wParam, lParam,
+                                intToBool(*pfEaten), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::TestKeyUp(WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->TestKeyUp(wParam, lParam, pfEaten);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::TestKeyUp({:x}, {:x}, {})->{:x}", wParam, lParam,
+                                intToBool(*pfEaten), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::KeyDown(WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->KeyDown(wParam, lParam, pfEaten);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfKeystrokeMgr::KeyDown({:x}, {:x}, {})->{:x}", wParam, lParam, intToBool(*pfEaten), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::KeyUp(WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->KeyUp(wParam, lParam, pfEaten);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfKeystrokeMgr::KeyUp({:x}, {:x}, {})->{:x}", wParam, lParam, intToBool(*pfEaten), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::GetPreservedKey(ITfContext *pic, const TF_PRESERVEDKEY *pprekey, GUID *pguid) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->GetPreservedKey(pic, pprekey, pguid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::GetPreservedKey(&{:x}, &{}, {})->{:x}", fmt::ptr(pic),
+                                *pprekey, guidToString(pguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::IsPreservedKey(REFGUID rguid, const TF_PRESERVEDKEY *pprekey, BOOL *pfRegistered) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->IsPreservedKey(rguid, pprekey, pfRegistered);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::IsPreservedKey({}, {}, {})->{:x}", guidToString(rguid),
+                                *pprekey, intToBool(*pfRegistered), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::PreserveKey(TfClientId tid, REFGUID rguid, const TF_PRESERVEDKEY *prekey,
+                                      const WCHAR *pchDesc, ULONG cchDesc) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->PreserveKey(tid, rguid, prekey, pchDesc, cchDesc);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::PreserveKey({:x}, {}, {}, {}, {})->{:x}", tid,
+                                guidToString(rguid), *prekey, rawWstr{pchDesc}, cchDesc, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::UnpreserveKey(REFGUID rguid, const TF_PRESERVEDKEY *pprekey) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->UnpreserveKey(rguid, pprekey);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfKeystrokeMgr::UnpreserveKey({}, {})->{:x}", guidToString(rguid), *pprekey, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::SetPreservedKeyDescription(REFGUID rguid, const WCHAR *pchDesc, ULONG cchDesc) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->SetPreservedKeyDescription(rguid, pchDesc, cchDesc);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::SetPreservedKeyDescription({}, {}, {})->{:x}",
+                                guidToString(rguid), rawWstr{pchDesc}, cchDesc, hr);
+  // OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::GetPreservedKeyDescription(REFGUID rguid, BSTR *pbstrDesc) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->GetPreservedKeyDescription(rguid, pbstrDesc);
+  auto logContent =
+      fmt::format("TSFSPY: [C]ITfKeystrokeMgr::GetPreservedKeyDescription({}, _)->{:x}", guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::SimulatePreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten) {
+  auto hr = ((ITfKeystrokeMgr *)object_)->SimulatePreservedKey(pic, rguid, pfEaten);
+  auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::SimulatePreservedKey(&{:x}, {}, {})->{:x}", fmt::ptr(pic),
+                                guidToString(rguid), intToBool(*pfEaten), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+#pragma endregion ITfKeystrokeMgr
+
+#pragma region ITfCategoryMgr
+STDMETHODIMP TraceObject::RegisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid){
+  auto hr = ((ITfCategoryMgr *)object_)->RegisterCategory(rclsid, rcatid, rguid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterCategory({}, {}, {})->{:x}", guidToString(rclsid),
+                                guidToString(rcatid), guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::UnregisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid){
+  auto hr = ((ITfCategoryMgr *)object_)->UnregisterCategory(rclsid, rcatid, rguid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::UnregisterCategory({}, {}, {})->{:x}", guidToString(rclsid),
+                                guidToString(rcatid), guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::EnumCategoriesInItem(REFGUID rguid, IEnumGUID **ppEnum){
+  auto hr = ((ITfCategoryMgr *)object_)->EnumCategoriesInItem(rguid, ppEnum);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::EnumCategoriesInItem({}, _)->{:x}", guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::EnumItemsInCategory(REFGUID rcatid, IEnumGUID **ppEnum){
+  auto hr = ((ITfCategoryMgr *)object_)->EnumItemsInCategory(rcatid, ppEnum);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::EnumItemsInCategory({}, _)->{:x}", guidToString(rcatid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::FindClosestCategory(REFGUID rguid, GUID *pcatid, const GUID **ppcatidList, ULONG ulCount){
+  auto hr = ((ITfCategoryMgr *)object_)->FindClosestCategory(rguid, pcatid, ppcatidList, ulCount);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::FindClosestCategory({}, {}, _, {})->{:x}",
+                                guidToString(rguid), guidToString(pcatid), ulCount, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::RegisterGUIDDescription(REFCLSID rclsid, REFGUID rguid, const WCHAR *pchDesc, ULONG cch){
+  auto hr = ((ITfCategoryMgr *)object_)->RegisterGUIDDescription(rclsid, rguid, pchDesc, cch);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterGUIDDescription({}, {}, {}, {})->{:x}",
+                                guidToString(rclsid), guidToString(rguid), rawWstr{pchDesc}, cch, hr);
+                                OutputDebugStringA(logContent.c_str());
+  return hr;
+
+}
+STDMETHODIMP TraceObject::UnregisterGUIDDescription(REFCLSID rclsid, REFGUID rguid){
+  auto hr = ((ITfCategoryMgr *)object_)->UnregisterGUIDDescription(rclsid, rguid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::UnregisterGUIDDescription({}, {})->{:x}",
+                                guidToString(rclsid), guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::GetGUIDDescription(REFGUID rguid, BSTR *pbstrDesc){
+  auto hr = ((ITfCategoryMgr *)object_)->GetGUIDDescription(rguid, pbstrDesc);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::GetGUIDDescription({}, _)->{:x}", guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::RegisterGUIDDWORD(REFCLSID rclsid, REFGUID rguid, DWORD dw){
+  auto hr = ((ITfCategoryMgr *)object_)->RegisterGUIDDWORD(rclsid, rguid, dw);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterGUIDDWORD({}, {}, {})->{:x}", guidToString(rclsid),
+                                guidToString(rguid), dw, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::UnregisterGUIDDWORD(REFCLSID rclsid, REFGUID rguid){
+  auto hr = ((ITfCategoryMgr *)object_)->UnregisterGUIDDWORD(rclsid, rguid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::UnregisterGUIDDWORD({}, {})->{:x}", guidToString(rclsid),
+                                guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::GetGUIDDWORD(REFGUID rguid, DWORD *pdw){
+  auto hr = ((ITfCategoryMgr *)object_)->GetGUIDDWORD(rguid, pdw);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::GetGUIDDWORD({}, _)->{:x}", guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::RegisterGUID(REFGUID rguid, TfGuidAtom *pguidatom){
+  auto hr = ((ITfCategoryMgr *)object_)->RegisterGUID(rguid, pguidatom);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::RegisterGUID({}, _)->{:x}", guidToString(rguid), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::GetGUID(TfGuidAtom guidatom, GUID *pguid){
+  auto hr = ((ITfCategoryMgr *)object_)->GetGUID(guidatom, pguid);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::GetGUID({}, _)->{:x}", guidatom, hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+STDMETHODIMP TraceObject::IsEqualTfGuidAtom(TfGuidAtom guidatom, REFGUID rguid, BOOL *pfEqual){
+  auto hr = ((ITfCategoryMgr *)object_)->IsEqualTfGuidAtom(guidatom, rguid, pfEqual);
+  auto logContent = fmt::format("TSFSPY: [C]ITfCategoryMgr::IsEqualTfGuidAtom({}, {}, {})->{:x}", guidatom,
+                                guidToString(rguid), intToBool(*pfEqual), hr);
+  OutputDebugStringA(logContent.c_str());
+  return hr;
+}
+#pragma endregion ITfCategoryMgr
+
+#pragma region Detours
+
+namespace {
+
+static HRESULT(__stdcall *TrueCoCreateInstance)(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid,
+                                                LPVOID *ppv) = CoCreateInstance;
+static HRESULT(__stdcall *TrueCoCreateInstanceEx)(REFCLSID rclsid, IUnknown *pUnkOuter, DWORD dwClsContext,
+                                                  COSERVERINFO *pServerInfo, DWORD dwCount,
+                                                  MULTI_QI *pResults) = CoCreateInstanceEx;
+
+HRESULT __stdcall HookedCoCreateInstance(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid,
+                                         LPVOID *ppv) {
+  if (ppv == nullptr) {
+    return E_INVALIDARG;
+  }
+
+  MULTI_QI qi;
+  qi.pItf = NULL;
+  qi.pIID = &riid;
+  auto hr = CoCreateInstanceEx(rclsid, pUnkOuter, dwClsContext, NULL, 1, &qi);
+  *ppv = qi.pItf;
+  return hr;
+}
+
+HRESULT __stdcall HookedCoCreateInstanceEx(REFCLSID rclsid, IUnknown *pUnkOuter, DWORD dwClsContext,
+                                           COSERVERINFO *pServerInfo, DWORD dwCount, MULTI_QI *pResults) {
+  auto hr = TrueCoCreateInstanceEx(rclsid, pUnkOuter, dwClsContext, pServerInfo, dwCount, pResults);
+  if (dwCount == 1 && pResults != nullptr) {
+    if (hr != S_OK)
+      return hr;
+
+    if (!isIIDSupported(*pResults->pIID))
+      return hr;
+    auto logContent =
+        fmt::format("TSFSPY: [S]::CoCreateInstance({}, {})", getCLSIDName(rclsid), getIIDName(*pResults->pIID));
+    OutputDebugStringA(logContent.c_str());
+
+    pResults->pItf = reinterpret_cast<IUnknown *>(
+        (new TraceObject(pResults->pItf, nullptr, getIIDName(*pResults->pIID)))->castAs(*pResults->pIID));
+  }
+  return hr;
+}
+} // namespace
+
+bool hookCoCreateInstance() {
+  if (NO_ERROR != DetourTransactionBegin()) {
+    return false;
+  }
+  if (NO_ERROR != DetourUpdateThread(GetCurrentThread())) {
+    return false;
+  }
+  if (NO_ERROR != DetourAttach(&(PVOID &)TrueCoCreateInstance, (PVOID)HookedCoCreateInstance)) {
+    return false;
+  }
+  if (NO_ERROR != DetourAttach(&(PVOID &)TrueCoCreateInstanceEx, (PVOID)HookedCoCreateInstanceEx)) {
+    return false;
+  }
+  if (NO_ERROR != DetourTransactionCommit()) {
+    return false;
+  }
+  return true;
+}
+
+void restoreCoCreateInstance() {
+  DetourTransactionBegin();
+  DetourUpdateThread(GetCurrentThread());
+  DetourDetach(&(PVOID &)TrueCoCreateInstance, (PVOID)HookedCoCreateInstance);
+  DetourDetach(&(PVOID &)TrueCoCreateInstanceEx, (PVOID)HookedCoCreateInstanceEx);
+  DetourTransactionCommit();
+}
+
+#pragma endregion Detours

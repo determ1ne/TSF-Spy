@@ -13,40 +13,40 @@ STDAPI ProxyObject::QueryInterface(REFIID riid, void **ppvObject) {
       IsEqualIID(riid, IID_ITfDisplayAttributeProvider) || IsEqualIID(riid, IID_IUnknown)) {
     *ppvObject = this;
     AddRef();
-    auto logContent = fmt::format("TSFSPY: [P]IUnknown::QueryInterface({})", guidString);
+    auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})", guidString);
     OutputDebugStringA(logContent.c_str());
     return NOERROR;
   }
-  auto logContent = fmt::format("TSFSPY: [P]IUnknown::QueryInterface({})!!UNKNOWN_INTERFACE", guidString);
+  auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})!!UNKNOWN_INTERFACE", guidString);
   OutputDebugStringA(logContent.c_str());
   *ppvObject = nullptr;
   return E_NOINTERFACE;
 }
 STDAPI_(ULONG) ProxyObject::AddRef() {
-  OutputDebugStringA("TSFSPY: [P]IUnknown::AddRef()");
+  OutputDebugStringA("TSFSPY: [T]IUnknown::AddRef()");
   return ((IUnknown *)tsfObject_)->AddRef();
 }
 STDAPI_(ULONG) ProxyObject::Release() {
-  OutputDebugStringA("TSFSPY: [P]IUnknown::Release()");
+  OutputDebugStringA("TSFSPY: [T]IUnknown::Release()");
   return ((IUnknown *)tsfObject_)->Release();
 }
 
 /* ITfTextInputProcessor */
 STDAPI ProxyObject::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClientId) {
   auto logContent =
-      fmt::format("TSFSPY: [P]ITfTextInputProcessor::Activate(0x{:x}, {:x})", (uint64_t)pThreadMgr, tfClientId);
+      fmt::format("TSFSPY: [T]ITfTextInputProcessor::Activate(0x{:x}, {:x})", (uint64_t)pThreadMgr, tfClientId);
   OutputDebugStringA(logContent.c_str());
   pThreadMgr = new TraceObject(pThreadMgr, this, "ITfThreadMgr");
   return ((ITfTextInputProcessor *)tsfObject_)->Activate(pThreadMgr, tfClientId);
 }
 STDAPI ProxyObject::Deactivate() {
-  OutputDebugStringA("TSFSPY: [P]ITfTextInputProcessor::Deactivate()");
+  OutputDebugStringA("TSFSPY: [T]ITfTextInputProcessor::Deactivate()");
   return ((ITfTextInputProcessor *)tsfObject_)->Deactivate();
 }
 
 /* ITfTextInputProcessorEx */
 STDAPI ProxyObject::ActivateEx(ITfThreadMgr *pThreadMgr, TfClientId tfClientId, DWORD dwFlags) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})", (uint64_t)pThreadMgr,
+  auto logContent = fmt::format("TSFSPY: [T]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})", (uint64_t)pThreadMgr,
                                 tfClientId, dwFlags);
   OutputDebugStringA(logContent.c_str());
   pThreadMgr = new TraceObject(pThreadMgr, this, "ITfThreadMgr");
@@ -55,35 +55,35 @@ STDAPI ProxyObject::ActivateEx(ITfThreadMgr *pThreadMgr, TfClientId tfClientId, 
 
 /* ITfThreadMgrEventSink */
 STDAPI ProxyObject::OnInitDocumentMgr(ITfDocumentMgr *pDocMgr) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadMgrEventSink::OnInitDocumentMgr(0x{:x})", (uint64_t)pDocMgr);
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgrEventSink::OnInitDocumentMgr(0x{:x})", (uint64_t)pDocMgr);
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadMgrEventSink *)tsfObject_)->OnInitDocumentMgr(pDocMgr);
 }
 STDAPI ProxyObject::OnUninitDocumentMgr(ITfDocumentMgr *pDocMgr) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadMgrEventSink::OnUninitDocumentMgr(0x{:x})", (uint64_t)pDocMgr);
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgrEventSink::OnUninitDocumentMgr(0x{:x})", (uint64_t)pDocMgr);
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadMgrEventSink *)tsfObject_)->OnUninitDocumentMgr(pDocMgr);
 }
 STDAPI ProxyObject::OnSetFocus(ITfDocumentMgr *pDocMgrFocus, ITfDocumentMgr *pDocMgrPrevFocus) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadMgrEventSink::OnSetFocus(0x{:x}, 0x{:x})", (uint64_t)pDocMgrFocus,
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgrEventSink::OnSetFocus(0x{:x}, 0x{:x})", (uint64_t)pDocMgrFocus,
                                 (uint64_t)pDocMgrPrevFocus);
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadMgrEventSink *)tsfObject_)->OnSetFocus(pDocMgrFocus, pDocMgrPrevFocus);
 }
 STDAPI ProxyObject::OnPushContext(ITfContext *pContext) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadMgrEventSink::OnPushContext(0x{:x})", (uint64_t)pContext);
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgrEventSink::OnPushContext(0x{:x})", (uint64_t)pContext);
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadMgrEventSink *)tsfObject_)->OnPushContext(pContext);
 }
 STDAPI ProxyObject::OnPopContext(ITfContext *pContext) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadMgrEventSink::OnPopContext(0x{:x})", (uint64_t)pContext);
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadMgrEventSink::OnPopContext(0x{:x})", (uint64_t)pContext);
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadMgrEventSink *)tsfObject_)->OnPopContext(pContext);
 }
 
 /* ITfTextEditSink */
 STDAPI ProxyObject::OnEndEdit(ITfContext *pic, TfEditCookie ecReadOnly, ITfEditRecord *pEditRecord) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfTextEditSink::OnEndEdit(0x{:x}, {:x}, 0x{:x})", (uint64_t)pic, ecReadOnly,
+  auto logContent = fmt::format("TSFSPY: [T]ITfTextEditSink::OnEndEdit(0x{:x}, {:x}, 0x{:x})", (uint64_t)pic, ecReadOnly,
                                 (uint64_t)pEditRecord);
   OutputDebugStringA(logContent.c_str());
   return ((ITfTextEditSink *)tsfObject_)->OnEndEdit(pic, ecReadOnly, pEditRecord);
@@ -91,7 +91,7 @@ STDAPI ProxyObject::OnEndEdit(ITfContext *pic, TfEditCookie ecReadOnly, ITfEditR
 
 /* ITfTextLayoutSink */
 STDAPI ProxyObject::OnLayoutChange(ITfContext *pContext, TfLayoutCode lcode, ITfContextView *pContextView) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfTextLayoutSink::OnLayoutChange(0x{:x}, {:x}, 0x{:x})",
+  auto logContent = fmt::format("TSFSPY: [T]ITfTextLayoutSink::OnLayoutChange(0x{:x}, {:x}, 0x{:x})",
                                 (unsigned long long)pContext, (int)lcode, (uint64_t)pContextView);
   OutputDebugStringA(logContent.c_str());
   return ((ITfTextLayoutSink *)tsfObject_)->OnLayoutChange(pContext, lcode, pContextView);
@@ -99,37 +99,37 @@ STDAPI ProxyObject::OnLayoutChange(ITfContext *pContext, TfLayoutCode lcode, ITf
 
 /* ITfKeyEventSink */
 STDAPI ProxyObject::OnSetFocus(BOOL fForeground) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfKeyEventSink::OnSetFocus({})", fForeground);
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnSetFocus({})", fForeground);
   OutputDebugStringA(logContent.c_str());
 
   return ((ITfKeyEventSink *)tsfObject_)->OnSetFocus(fForeground);
 }
 STDAPI ProxyObject::OnTestKeyDown(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfKeyEventSink::OnTestKeyDown(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnTestKeyDown(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
                                 wParam, lParam, *pfEaten);
   OutputDebugStringA(logContent.c_str());
   return ((ITfKeyEventSink *)tsfObject_)->OnTestKeyDown(pContext, wParam, lParam, pfEaten);
 }
 STDAPI ProxyObject::OnKeyDown(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfKeyEventSink::OnKeyDown(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnKeyDown(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
                                 wParam, lParam, *pfEaten);
   OutputDebugStringA(logContent.c_str());
   return ((ITfKeyEventSink *)tsfObject_)->OnKeyDown(pContext, wParam, lParam, pfEaten);
 }
 STDAPI ProxyObject::OnTestKeyUp(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfKeyEventSink::OnTestKeyUp(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnTestKeyUp(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
                                 wParam, lParam, *pfEaten);
   OutputDebugStringA(logContent.c_str());
   return ((ITfKeyEventSink *)tsfObject_)->OnTestKeyUp(pContext, wParam, lParam, pfEaten);
 }
 STDAPI ProxyObject::OnKeyUp(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfKeyEventSink::OnKeyUp(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext, wParam,
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnKeyUp(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext, wParam,
                                 lParam, *pfEaten);
   OutputDebugStringA(logContent.c_str());
   return ((ITfKeyEventSink *)tsfObject_)->OnKeyUp(pContext, wParam, lParam, pfEaten);
 }
 STDAPI ProxyObject::OnPreservedKey(ITfContext *pContext, REFGUID rguid, BOOL *pfEaten) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfKeyEventSink::OnPreservedKey(0x{:x}, {}, {})", (uint64_t)pContext,
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnPreservedKey(0x{:x}, {}, {})", (uint64_t)pContext,
                                 guidToString(rguid), *pfEaten);
   OutputDebugStringA(logContent.c_str());
 
@@ -138,12 +138,12 @@ STDAPI ProxyObject::OnPreservedKey(ITfContext *pContext, REFGUID rguid, BOOL *pf
 
 // ITfThreadFocusSink
 STDAPI ProxyObject::OnSetThreadFocus() {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadFocusSink::OnSetThreadFocus()");
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadFocusSink::OnSetThreadFocus()");
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadFocusSink *)tsfObject_)->OnSetThreadFocus();
 }
 STDAPI ProxyObject::OnKillThreadFocus() {
-  auto logContent = fmt::format("TSFSPY: [P]ITfThreadFocusSink::OnKillThreadFocus()");
+  auto logContent = fmt::format("TSFSPY: [T]ITfThreadFocusSink::OnKillThreadFocus()");
   OutputDebugStringA(logContent.c_str());
   return ((ITfThreadFocusSink *)tsfObject_)->OnKillThreadFocus();
 }
@@ -151,21 +151,21 @@ STDAPI ProxyObject::OnKillThreadFocus() {
 /* ITfCompositionSink */
 STDAPI ProxyObject::OnCompositionTerminated(TfEditCookie ecWrite, ITfComposition *pComposition) {
   auto logContent =
-      fmt::format("TSFSPY: [P]ITfCompositionSink::OnCompositionTerminated({}, 0x{:x})", ecWrite, (uint64_t)pComposition);
+      fmt::format("TSFSPY: [T]ITfCompositionSink::OnCompositionTerminated({}, 0x{:x})", ecWrite, (uint64_t)pComposition);
   OutputDebugStringA(logContent.c_str());
   return ((ITfCompositionSink *)tsfObject_)->OnCompositionTerminated(ecWrite, pComposition);
 }
 
 /* ITfEditSession */
 STDAPI ProxyObject::DoEditSession(TfEditCookie ec) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfEditSession::DoEditSession({})", ec);
+  auto logContent = fmt::format("TSFSPY: [T]ITfEditSession::DoEditSession({})", ec);
   OutputDebugStringA(logContent.c_str());
   return ((ITfEditSession *)tsfObject_)->DoEditSession(ec);
 }
 
 /* ITfActiveLanguageProfileNotifySink */
 STDAPI ProxyObject::OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL isActivated) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfActiveLanguageProfileNotifySink::OnActivated({}, {}, {})",
+  auto logContent = fmt::format("TSFSPY: [T]ITfActiveLanguageProfileNotifySink::OnActivated({}, {}, {})",
                                 guidToString(clsid), guidToString(guidProfile), isActivated);
   OutputDebugStringA(logContent.c_str());
   return ((ITfActiveLanguageProfileNotifySink *)tsfObject_)->OnActivated(clsid, guidProfile, isActivated);
@@ -173,14 +173,14 @@ STDAPI ProxyObject::OnActivated(REFCLSID clsid, REFGUID guidProfile, BOOL isActi
 
 // ITfDisplayAttributeProvider
 STDAPI ProxyObject::EnumDisplayAttributeInfo(__RPC__deref_out_opt IEnumTfDisplayAttributeInfo **ppEnum) {
-  auto logContent = fmt::format("TSFSPY: [P]ITfDisplayAttributeProvider::EnumDisplayAttributeInfo()");
+  auto logContent = fmt::format("TSFSPY: [T]ITfDisplayAttributeProvider::EnumDisplayAttributeInfo()");
   OutputDebugStringA(logContent.c_str());
   return ((ITfDisplayAttributeProvider *)tsfObject_)->EnumDisplayAttributeInfo(ppEnum);
 }
 STDAPI ProxyObject::GetDisplayAttributeInfo(__RPC__in REFGUID guidInfo,
                                             __RPC__deref_out_opt ITfDisplayAttributeInfo **ppInfo) {
   auto logContent =
-      fmt::format("TSFSPY: [P]ITfDisplayAttributeProvider::GetDisplayAttributeInfo({})", guidToString(guidInfo));
+      fmt::format("TSFSPY: [T]ITfDisplayAttributeProvider::GetDisplayAttributeInfo({})", guidToString(guidInfo));
   OutputDebugStringA(logContent.c_str());
   return ((ITfDisplayAttributeProvider *)tsfObject_)->GetDisplayAttributeInfo(guidInfo, ppInfo);
 }

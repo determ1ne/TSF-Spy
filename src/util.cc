@@ -8,7 +8,6 @@
 #include <msctf.h>
 #include <windows.h>
 
-
 #define STRINGIFY(x) #x
 
 std::string guidToString(const GUID &guid) {
@@ -184,4 +183,12 @@ std::string getIIDName(REFIID riid) {
   return guidToString(riid);
 #undef IF_TYPE_RETURN
   /* clang-format on */
+}
+
+std::string getCLSIDName(REFCLSID rclsid) {
+#define IF_TYPE_RETURN(_type) if (IsEqualCLSID(rclsid, CLSID_##_type)) { return STRINGIFY(_type); }
+  IF_TYPE_RETURN(TF_CategoryMgr)
+
+  return guidToString(rclsid);
+#undef IF_TYPE_RETURN
 }
