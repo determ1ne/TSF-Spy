@@ -35,6 +35,7 @@ bool isIIDSupported(REFIID riid) {
     || IsEqualIID(riid, IID_ITfCompartmentMgr)
     || IsEqualIID(riid, IID_ITfUIElementMgr)
     || IsEqualIID(riid, IID_ITfDocumentMgr)
+    || IsEqualIID(riid, IID_ITfContext)
       /* clang-format on */
   ) {
     return true;
@@ -58,6 +59,7 @@ void *TraceObject::castAs(REFIID riid) {
   SUPPORT_INTERFACE(ITfCompartmentMgr)
   SUPPORT_INTERFACE(ITfUIElementMgr)
   SUPPORT_INTERFACE(ITfDocumentMgr)
+  SUPPORT_INTERFACE(ITfContext)
 
   return nullptr;
 #undef SUPPORT_INTERFACE
@@ -85,7 +87,7 @@ STDMETHODIMP TraceObject::QueryInterface(REFIID riid, void **ppvObject) {
     if (isTraceObject) {
       // do nothing
     } else if (isIIDSupported(riid)) {
-      *ppvObject = (new TraceObject(*ppvObject, proxyObject_, getIIDName(riid)))->castAs(riid);
+      *ppvObject = (new TraceObject(*ppvObject, getIIDName(riid)))->castAs(riid);
     } else {
       logContent += "!!UNSUPPORTED_INTERFACE";
     }
@@ -128,7 +130,7 @@ STDMETHODIMP TraceObject::GetFocus(ITfDocumentMgr **ppdimFocus) {
   if (hr != S_OK)
     return hr;
 
-  auto obj = (new TraceObject(*ppdimFocus, proxyObject_, "ITfDocumentMgr"))->castAs(IID_ITfDocumentMgr);
+  auto obj = (new TraceObject(*ppdimFocus, "ITfDocumentMgr"))->castAs(IID_ITfDocumentMgr);
   *ppdimFocus = reinterpret_cast<ITfDocumentMgr *>(obj);
   log(LogType::Common, interfaceType_, "GetFocus", "(_, _)->0x{:x}", ul(hr));
   return hr;
@@ -579,6 +581,9 @@ STDMETHODIMP TraceObject::Pop(
 STDMETHODIMP TraceObject::GetTop(
     /* [out] */ ITfContext **ppic) {
   auto hr = ((ITfDocumentMgr *)object_)->GetTop(ppic);
+  if (hr == S_OK) {
+    *ppic = TraceObject::newAs<ITfContext>(IID_ITfContext, *ppic);
+  }
   log(LogType::Common, "ITfDocumentMgr", "GetTop", "(_)->{:x}", hr);
   return hr;
 }
@@ -598,6 +603,136 @@ STDMETHODIMP TraceObject::EnumContexts(
 }
 
 #pragma endregion ITfDocumentMgr
+
+#pragma region ITfContext
+
+STDMETHODIMP TraceObject::RequestEditSession(
+    /* [in] */ TfClientId tid,
+    /* [in] */ ITfEditSession *pes,
+    /* [in] */ DWORD dwFlags,
+    /* [out] */ HRESULT *phrSession) {
+  auto hr = ((ITfContext *)object_)->RequestEditSession(tid, pes, dwFlags, phrSession);
+  log(LogType::Common, "ITfContext", "RequestEditSession", "({:x}, {}, {}, _)->{:x}", tid, fmt::ptr(pes), dwFlags, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::InWriteSession(
+    /* [in] */ TfClientId tid,
+    /* [out] */ BOOL *pfWriteSession) {
+  auto hr = ((ITfContext *)object_)->InWriteSession(tid, pfWriteSession);
+  log(LogType::Common, "ITfContext", "InWriteSession", "({:x}, _)->{:x}", tid, intToBool(*pfWriteSession), hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetSelection(
+    /* [in] */ TfEditCookie ec,
+    /* [in] */ ULONG ulIndex,
+    /* [in] */ ULONG ulCount,
+    /* [length_is(ulCount)][size_is(*pcFetched)][out] */ TF_SELECTION *pSelection,
+    /* [out] */ ULONG *pcFetched) {
+  auto hr = ((ITfContext *)object_)->GetSelection(ec, ulIndex, ulCount, pSelection, pcFetched);
+  log(LogType::Common, "ITfContext", "GetSelection", "({}, {}, {}, _, _)->{:x}", ec, ulIndex, ulCount, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::SetSelection(
+    /* [in] */ TfEditCookie ec,
+    /* [in] */ ULONG ulCount,
+    /* [size_is(ulCount)][in] */ const TF_SELECTION *pSelection) {
+  auto hr = ((ITfContext *)object_)->SetSelection(ec, ulCount, pSelection);
+  log(LogType::Common, "ITfContext", "SetSelection", "({}, {}, _)->{:x}", ec, ulCount, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetStart(
+    /* [in] */ TfEditCookie ec,
+    /* [out] */ ITfRange **ppStart) {
+  auto hr = ((ITfContext *)object_)->GetStart(ec, ppStart);
+  log(LogType::Common, "ITfContext", "GetStart", "({}, _)->{:x}", ec, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetEnd(
+    /* [in] */ TfEditCookie ec,
+    /* [out] */ ITfRange **ppEnd) {
+  auto hr = ((ITfContext *)object_)->GetEnd(ec, ppEnd);
+  log(LogType::Common, "ITfContext", "GetEnd", "({}, _)->{:x}", ec, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetActiveView(
+    /* [out] */ ITfContextView **ppView) {
+  auto hr = ((ITfContext *)object_)->GetActiveView(ppView);
+  log(LogType::Common, "ITfContext", "GetActiveView", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::EnumViews(
+    /* [out] */ IEnumTfContextViews **ppEnum) {
+  auto hr = ((ITfContext *)object_)->EnumViews(ppEnum);
+  log(LogType::Common, "ITfContext", "EnumViews", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetStatus(
+    /* [out] */ TF_STATUS *pdcs) {
+  auto hr = ((ITfContext *)object_)->GetStatus(pdcs);
+  log(LogType::Common, "ITfContext", "GetStatus", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetProperty(
+    /* [in] */ REFGUID guidProp,
+    /* [out] */ ITfProperty **ppProp) {
+  auto hr = ((ITfContext *)object_)->GetProperty(guidProp, ppProp);
+  log(LogType::Common, "ITfContext", "GetProperty", "({}, _)->{:x}", guidToString(guidProp), hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetAppProperty(
+    /* [in] */ REFGUID guidProp,
+    /* [out] */ ITfReadOnlyProperty **ppProp) {
+  auto hr = ((ITfContext *)object_)->GetAppProperty(guidProp, ppProp);
+  log(LogType::Common, "ITfContext", "GetAppProperty", "({}, _)->{:x}", guidToString(guidProp), hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::TrackProperties(
+    /* [size_is(cProp)][in] */ const GUID **prgProp,
+    /* [in] */ ULONG cProp,
+    /* [size_is(cAppProp)][in] */ const GUID **prgAppProp,
+    /* [in] */ ULONG cAppProp,
+    /* [out] */ ITfReadOnlyProperty **ppProperty) {
+  auto hr = ((ITfContext *)object_)->TrackProperties(prgProp, cProp, prgAppProp, cAppProp, ppProperty);
+
+  log(LogType::Common, "ITfContext", "TrackProperties", "(_, {}, _, {}, _)->{:x}", cProp, cAppProp, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::EnumProperties(
+    /* [out] */ IEnumTfProperties **ppEnum) {
+  auto hr = ((ITfContext *)object_)->EnumProperties(ppEnum);
+  log(LogType::Common, "ITfContext", "EnumProperties", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetDocumentMgr(
+    /* [out] */ ITfDocumentMgr **ppDm) {
+  auto hr = ((ITfContext *)object_)->GetDocumentMgr(ppDm);
+  log(LogType::Common, "ITfContext", "GetDocumentMgr", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::CreateRangeBackup(
+    /* [in] */ TfEditCookie ec,
+    /* [in] */ ITfRange *pRange,
+    /* [out] */ ITfRangeBackup **ppBackup) {
+  auto hr = ((ITfContext *)object_)->CreateRangeBackup(ec, pRange, ppBackup);
+  log(LogType::Common, "ITfContext", "CreateRangeBackup", "({}, {}, _)->{:x}", ec, fmt::ptr(pRange), hr);
+  return hr;
+}
+
+#pragma endregion ITfContext
 
 #pragma region Detours
 
@@ -637,7 +772,7 @@ HRESULT __stdcall HookedCoCreateInstanceEx(REFCLSID rclsid, IUnknown *pUnkOuter,
     OutputDebugStringA(logContent.c_str());
 
     pResults->pItf = reinterpret_cast<IUnknown *>(
-        (new TraceObject(pResults->pItf, nullptr, getIIDName(*pResults->pIID)))->castAs(*pResults->pIID));
+        (new TraceObject(pResults->pItf, getIIDName(*pResults->pIID)))->castAs(*pResults->pIID));
   }
   return hr;
 }

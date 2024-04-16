@@ -12,12 +12,12 @@ class TraceObject :
     public ITfLangBarItemMgr,
     public ITfCompartmentMgr,
     public ITfUIElementMgr,
-    ITfDocumentMgr
+    public ITfDocumentMgr,
+    public ITfContext
 /*clang-format on*/
 {
 public:
-  TraceObject(void *object, void *proxyObject, const std::string &as)
-      : object_(object), proxyObject_(proxyObject), interfaceType_(as) {}
+  TraceObject(void *object, const std::string &as) : object_(object), interfaceType_(as) {}
   virtual ~TraceObject() = default;
 
   /* IUnknown */
@@ -103,19 +103,40 @@ public:
   STDMETHODIMP EnumUIElements(IEnumTfUIElements **ppEnum);
 
   /* ITfDocumentMgr */
-  STDMETHODIMP CreateContext(TfClientId tidOwner, DWORD dwFlags, IUnknown *punk, ITfContext **ppic, TfEditCookie *pecTextStore);
+  STDMETHODIMP CreateContext(TfClientId tidOwner, DWORD dwFlags, IUnknown *punk, ITfContext **ppic,
+                             TfEditCookie *pecTextStore);
   STDMETHODIMP Push(ITfContext *pic);
   STDMETHODIMP Pop(DWORD dwFlags);
   STDMETHODIMP GetTop(ITfContext **ppic);
   STDMETHODIMP GetBase(ITfContext **ppic);
   STDMETHODIMP EnumContexts(IEnumTfContexts **ppEnum);
 
+  /* ITfContext */
+  STDMETHODIMP RequestEditSession(TfClientId tid, ITfEditSession *pes, DWORD dwFlags, HRESULT *phrSession);
+  STDMETHODIMP InWriteSession(TfClientId tid, BOOL *pfWriteSession);
+  STDMETHODIMP GetSelection(TfEditCookie ec, ULONG ulIndex, ULONG ulCount, TF_SELECTION *pSelection, ULONG *pcFetched);
+  STDMETHODIMP SetSelection(TfEditCookie ec, ULONG ulCount, const TF_SELECTION *pSelection);
+  STDMETHODIMP GetStart(TfEditCookie ec, ITfRange **ppStart);
+  STDMETHODIMP GetEnd(TfEditCookie ec, ITfRange **ppEnd);
+  STDMETHODIMP GetActiveView(ITfContextView **ppView);
+  STDMETHODIMP EnumViews(IEnumTfContextViews **ppEnum);
+  STDMETHODIMP GetStatus(TF_STATUS *pdcs);
+  STDMETHODIMP GetProperty(REFGUID guidProp, ITfProperty **ppProp);
+  STDMETHODIMP GetAppProperty(REFGUID guidProp, ITfReadOnlyProperty **ppProp);
+  STDMETHODIMP TrackProperties(const GUID **prgProp, ULONG cProp, const GUID **prgAppProp, ULONG cAppProp, ITfReadOnlyProperty **ppProperty);
+  STDMETHODIMP EnumProperties(IEnumTfProperties **ppEnum);
+  STDMETHODIMP GetDocumentMgr(ITfDocumentMgr **ppDm);
+  STDMETHODIMP CreateRangeBackup(TfEditCookie ec, ITfRange *pRange, ITfRangeBackup **ppBackup);
+
   /* other functions */
+  template <typename T>
+  static T *newAs(REFIID riid, void *pv) {
+    return reinterpret_cast<T*>((new TraceObject(pv, getIIDName(riid)))->castAs(riid));
+  }
   void *castAs(REFIID riid);
 
 private:
   void *object_;
-  void *proxyObject_;
   std::string interfaceType_;
 };
 

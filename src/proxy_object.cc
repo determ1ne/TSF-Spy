@@ -91,7 +91,7 @@ STDAPI ProxyObject::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClientId) {
   auto logContent =
       fmt::format("TSFSPY: [T]ITfTextInputProcessor::Activate(0x{:x}, {:x})", (uint64_t)pThreadMgr, tfClientId);
   OutputDebugStringA(logContent.c_str());
-  pThreadMgr = new TraceObject(pThreadMgr, this, "ITfThreadMgr");
+  pThreadMgr = new TraceObject(pThreadMgr, "ITfThreadMgr");
   return ((ITfTextInputProcessor *)tsfObject_)->Activate(pThreadMgr, tfClientId);
 }
 STDAPI ProxyObject::Deactivate() {
@@ -104,7 +104,7 @@ STDAPI ProxyObject::ActivateEx(ITfThreadMgr *pThreadMgr, TfClientId tfClientId, 
   auto logContent = fmt::format("TSFSPY: [T]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})",
                                 (uint64_t)pThreadMgr, tfClientId, dwFlags);
   OutputDebugStringA(logContent.c_str());
-  pThreadMgr = new TraceObject(pThreadMgr, this, "ITfThreadMgr");
+  pThreadMgr = new TraceObject(pThreadMgr, "ITfThreadMgr");
   return ((ITfTextInputProcessorEx *)tsfObject_)->ActivateEx(pThreadMgr, tfClientId, dwFlags);
 }
 
