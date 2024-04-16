@@ -47,6 +47,25 @@ public:
   STDMETHODIMP OnPreservedKey(ITfContext *pic, REFGUID rguid, BOOL *pfEaten);
 };
 
+class DTfThreadMgr : public Ditto, public ITfThreadMgr {
+public:
+  DTfThreadMgr(void *object) : Ditto(object, IID_ITfThreadMgr, LogType::TextService) {}
+  virtual ~DTfThreadMgr() = default;
+
+  DECLARE_IUNKNOWN
+  STDMETHODIMP Activate(TfClientId *ptid);
+  STDMETHODIMP Deactivate();
+  STDMETHODIMP CreateDocumentMgr(ITfDocumentMgr **ppdim);
+  STDMETHODIMP EnumDocumentMgrs(IEnumTfDocumentMgrs **ppEnum);
+  STDMETHODIMP GetFocus(ITfDocumentMgr **ppdimFocus);
+  STDMETHODIMP SetFocus(ITfDocumentMgr *pdimFocus);
+  STDMETHODIMP AssociateFocus(HWND hwnd, ITfDocumentMgr *pdimNew, ITfDocumentMgr **ppdimPrev);
+  STDMETHODIMP IsThreadFocus(BOOL *pfThreadFocus);
+  STDMETHODIMP GetFunctionProvider(REFCLSID clsid, ITfFunctionProvider **ppFuncProv);
+  STDMETHODIMP EnumFunctionProviders(IEnumTfFunctionProviders **ppEnum);
+  STDMETHODIMP GetGlobalCompartment(ITfCompartmentMgr **ppCompMgr);
+};
+
 #undef DECLARE_IUNKNOWN
 
 template <typename T>

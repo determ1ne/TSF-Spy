@@ -1,9 +1,9 @@
 #include "ditto.h"
+#include "fmt/format.h"
 #include <algorithm>
 #include <functional>
 #include <unordered_map>
 #include <vector>
-
 
 template <>
 struct std::hash<IID> {
@@ -22,7 +22,10 @@ Ditto *dittoCtor(void *object, REFIID riid, Ditto::InterfaceType type) {
   return new T(object);
 }
 
-void initCtorMap() { g_ctorMap[IID_ITfKeyEventSink] = &dittoCtor<DTfKeyEventSink>; }
+void initCtorMap() {
+  g_ctorMap[IID_ITfKeyEventSink] = &dittoCtor<DTfKeyEventSink>;
+  g_ctorMap[IID_ITfThreadMgr] = &dittoCtor<DTfThreadMgr>;
+}
 
 Ditto::Ditto(void *object, REFIID riid, InterfaceType type) : object_(object), iid_(riid), type_(type) {
   auto it = g_dittoMap.find(object);
@@ -37,7 +40,8 @@ Ditto::~Ditto() {
   if (it == g_dittoMap.end())
     return;
 
-  auto &vec = it->second;
+  std::vector<Ditto *> vec(it->second);
+  g_dittoMap.erase(it);
   auto itVec = std::find(vec.cbegin(), vec.cend(), this);
   if (itVec == vec.cend())
     return;
@@ -47,7 +51,6 @@ Ditto::~Ditto() {
   for (auto &ditto : vec) {
     delete ditto;
   }
-  g_dittoMap.erase(it);
 }
 
 Ditto *Ditto::CreateOrGet(void *object, REFIID riid, InterfaceType type) {
@@ -75,7 +78,7 @@ Ditto *Ditto::CreateOrGet(void *object, const IID &riid, bool checked, Interface
 
 bool Ditto::IsIIDSupported(REFIID riid) { return g_ctorMap.find(riid) != g_ctorMap.end(); }
 
-#pragma region IUnknown
+#pragma region Ditto
 
 STDMETHODIMP Ditto::QueryInterface(REFIID riid, void **ppvObject) {
   if (ppvObject == nullptr) {
@@ -105,11 +108,11 @@ STDMETHODIMP Ditto::QueryInterface(REFIID riid, void **ppvObject) {
 STDMETHODIMP_(ULONG) Ditto::AddRef() { return ((IUnknown *)object_)->AddRef(); }
 STDMETHODIMP_(ULONG) Ditto::Release() { return ((IUnknown *)object_)->Release(); }
 
-#pragma endregion IUnknown
+#pragma endregion Ditto
 
 #define DEFINE_IUNKNOWN(cls)                                                                                           \
-  STDMETHODIMP cls::QueryInterface(REFIID riid, void **ppvObject) { return Ditto::QueryInterface(riid, ppvObject); }    \
-  STDMETHODIMP_(ULONG) cls::AddRef() { return Ditto::AddRef(); }                                                         \
+  STDMETHODIMP cls::QueryInterface(REFIID riid, void **ppvObject) { return Ditto::QueryInterface(riid, ppvObject); }   \
+  STDMETHODIMP_(ULONG) cls::AddRef() { return Ditto::AddRef(); }                                                       \
   STDMETHODIMP_(ULONG) cls::Release() { return Ditto::Release(); }
 
 #pragma region DTfKeyEventSink
@@ -177,3 +180,89 @@ STDMETHODIMP DTfKeyEventSink::OnPreservedKey(
 }
 
 #pragma endregion DTfKeyEventSink
+
+#pragma region DTfThreadMgr
+
+DEFINE_IUNKNOWN(DTfThreadMgr)
+
+STDMETHODIMP DTfThreadMgr::Activate(
+    /* [out] */ TfClientId *ptid) {
+  auto hr = ((ITfThreadMgr *)object_)->Activate(ptid);
+  log(LogType::TextService, "ITfThreadMgr", "Activate", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::Deactivate() {
+  auto hr = ((ITfThreadMgr *)object_)->Deactivate();
+  log(LogType::TextService, "ITfThreadMgr", "Deactivate", "()->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::CreateDocumentMgr(
+    /* [out] */ ITfDocumentMgr **ppdim) {
+
+  auto hr = ((ITfThreadMgr *)object_)->CreateDocumentMgr(ppdim);
+  log(LogType::TextService, "ITfThreadMgr", "CreateDocumentMgr", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::EnumDocumentMgrs(
+    /* [out] */ IEnumTfDocumentMgrs **ppEnum) {
+  auto hr = ((ITfThreadMgr *)object_)->EnumDocumentMgrs(ppEnum);
+  log(LogType::TextService, "ITfThreadMgr", "EnumDocumentMgrs", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::GetFocus(
+    /* [out] */ ITfDocumentMgr **ppdimFocus) {
+  auto hr = ((ITfThreadMgr *)object_)->GetFocus(ppdimFocus);
+  log(LogType::TextService, "ITfThreadMgr", "GetFocus", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::SetFocus(
+    /* [in] */ ITfDocumentMgr *pdimFocus) {
+  auto hr = ((ITfThreadMgr *)object_)->SetFocus(pdimFocus);
+  log(LogType::TextService, "ITfThreadMgr", "SetFocus", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::AssociateFocus(
+    /* [in] */ HWND hwnd,
+    /* [unique][in] */ ITfDocumentMgr *pdimNew,
+    /* [out] */ ITfDocumentMgr **ppdimPrev) {
+  auto hr = ((ITfThreadMgr *)object_)->AssociateFocus(hwnd, pdimNew, ppdimPrev);
+  log(LogType::TextService, "ITfThreadMgr", "AssociateFocus", "(0x{:x}, _, _)->0x{:x}", fmt::ptr(hwnd), ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::IsThreadFocus(
+    /* [out] */ BOOL *pfThreadFocus) {
+  auto hr = ((ITfThreadMgr *)object_)->IsThreadFocus(pfThreadFocus);
+  log(LogType::TextService, "ITfThreadMgr", "IsThreadFocus", "(_)->0x{:x}", *pfThreadFocus, ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::GetFunctionProvider(
+    /* [in] */ REFCLSID clsid,
+    /* [out] */ ITfFunctionProvider **ppFuncProv) {
+  auto hr = ((ITfThreadMgr *)object_)->GetFunctionProvider(clsid, ppFuncProv);
+  log(LogType::TextService, "ITfThreadMgr", "GetFunctionProvider", "({}, _)->0x{:x}", getCLSIDName(clsid), ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::EnumFunctionProviders(
+    /* [out] */ IEnumTfFunctionProviders **ppEnum) {
+  auto hr = ((ITfThreadMgr *)object_)->EnumFunctionProviders(ppEnum);
+  log(LogType::TextService, "ITfThreadMgr", "EnumFunctionProviders", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+STDMETHODIMP DTfThreadMgr::GetGlobalCompartment(
+    /* [out] */ ITfCompartmentMgr **ppCompMgr) {
+  auto hr = ((ITfThreadMgr *)object_)->GetGlobalCompartment(ppCompMgr);
+  log(LogType::TextService, "ITfThreadMgr", "GetGlobalCompartment", "(_)->0x{:x}", ul(hr));
+  return hr;
+}
+
+#pragma endregion DTfThreadMgr

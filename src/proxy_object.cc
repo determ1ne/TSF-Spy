@@ -1,4 +1,5 @@
 #include "proxy_object.h"
+#include "ditto.h"
 #include "trace_object.h"
 #include "util.h"
 #include <fmt/core.h>
@@ -91,7 +92,7 @@ STDAPI ProxyObject::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClientId) {
   auto logContent =
       fmt::format("TSFSPY: [T]ITfTextInputProcessor::Activate(0x{:x}, {:x})", (uint64_t)pThreadMgr, tfClientId);
   OutputDebugStringA(logContent.c_str());
-  pThreadMgr = new TraceObject(pThreadMgr, "ITfThreadMgr");
+  pThreadMgr = CreateOrGetDitto<ITfThreadMgr>(pThreadMgr, IID_ITfThreadMgr, LogType::Common);
   return ((ITfTextInputProcessor *)tsfObject_)->Activate(pThreadMgr, tfClientId);
 }
 STDAPI ProxyObject::Deactivate() {
@@ -104,7 +105,7 @@ STDAPI ProxyObject::ActivateEx(ITfThreadMgr *pThreadMgr, TfClientId tfClientId, 
   auto logContent = fmt::format("TSFSPY: [T]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})",
                                 (uint64_t)pThreadMgr, tfClientId, dwFlags);
   OutputDebugStringA(logContent.c_str());
-  pThreadMgr = new TraceObject(pThreadMgr, "ITfThreadMgr");
+  pThreadMgr = CreateOrGetDitto<ITfThreadMgr>(pThreadMgr, IID_ITfThreadMgr, LogType::Common);
   return ((ITfTextInputProcessorEx *)tsfObject_)->ActivateEx(pThreadMgr, tfClientId, dwFlags);
 }
 
