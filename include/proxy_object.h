@@ -1,3 +1,4 @@
+#pragma once
 #include <msctf.h>
 #include <windows.h>
 
@@ -66,6 +67,9 @@ public:
   STDMETHODIMP EnumDisplayAttributeInfo(__RPC__deref_out_opt IEnumTfDisplayAttributeInfo **ppEnum);
   STDMETHODIMP GetDisplayAttributeInfo(__RPC__in REFGUID guidInfo,
                                        __RPC__deref_out_opt ITfDisplayAttributeInfo **ppInfo);
+
+  // other functions
+  void *CastAs(REFIID riid);
 private:
   void *tsfObject_{nullptr};
 };

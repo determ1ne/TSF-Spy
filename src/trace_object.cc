@@ -1,13 +1,10 @@
 #include "trace_object.h"
+#include "proxy_object.h"
 #include "util.h"
 #include <detours.h>
 #include <fmt/core.h>
 #include <fmt/format.h>
 #include <windows.h>
-
-// {63D45364-7291-4789-BF12-F5F50D68FB8C}
-static const GUID IID_ITraceObject = {0x63d45364, 0x7291, 0x4789, {0xbf, 0x12, 0xf5, 0xf5, 0xd, 0x68, 0xfb, 0x8c}};
-constexpr HRESULT E_TRACE_ALREADY_SET = 0xDEADBEEF;
 
 // helpers
 inline bool intToBool(BOOL i) { return i != FALSE; }
@@ -37,6 +34,7 @@ bool isIIDSupported(REFIID riid) {
     || IsEqualIID(riid, IID_ITfLangBarItemMgr)
     || IsEqualIID(riid, IID_ITfCompartmentMgr)
     || IsEqualIID(riid, IID_ITfUIElementMgr)
+    || IsEqualIID(riid, IID_ITfDocumentMgr)
       /* clang-format on */
   ) {
     return true;
@@ -59,6 +57,7 @@ void *TraceObject::castAs(REFIID riid) {
   SUPPORT_INTERFACE(ITfLangBarItemMgr)
   SUPPORT_INTERFACE(ITfCompartmentMgr)
   SUPPORT_INTERFACE(ITfUIElementMgr)
+  SUPPORT_INTERFACE(ITfDocumentMgr)
 
   return nullptr;
 #undef SUPPORT_INTERFACE
@@ -91,6 +90,7 @@ STDMETHODIMP TraceObject::QueryInterface(REFIID riid, void **ppvObject) {
       logContent += "!!UNSUPPORTED_INTERFACE";
     }
   }
+  AddRef();
   OutputDebugStringA(logContent.c_str());
 
   return hr;
@@ -124,9 +124,14 @@ STDMETHODIMP TraceObject::EnumDocumentMgrs(IEnumTfDocumentMgrs **ppEnum) {
   return ((ITfThreadMgr *)object_)->EnumDocumentMgrs(ppEnum);
 }
 STDMETHODIMP TraceObject::GetFocus(ITfDocumentMgr **ppdimFocus) {
-  auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::GetFocus(_)");
-  OutputDebugStringA(logContent.c_str());
-  return ((ITfThreadMgr *)object_)->GetFocus(ppdimFocus);
+  auto hr = ((ITfThreadMgr *)object_)->GetFocus(ppdimFocus);
+  if (hr != S_OK)
+    return hr;
+
+  auto obj = (new TraceObject(*ppdimFocus, proxyObject_, "ITfDocumentMgr"))->castAs(IID_ITfDocumentMgr);
+  *ppdimFocus = reinterpret_cast<ITfDocumentMgr *>(obj);
+  log(LogType::Common, interfaceType_, "GetFocus", "(_, _)->0x{:x}", ul(hr));
+  return hr;
 }
 STDMETHODIMP TraceObject::SetFocus(ITfDocumentMgr *pdimFocus) {
   auto logContent = fmt::format("TSFSPY: [C]ITfThreadMgr::SetFocus(_)");
@@ -162,10 +167,18 @@ STDMETHODIMP TraceObject::GetGlobalCompartment(ITfCompartmentMgr **ppCompMgr) {
 
 #pragma region ITfSource
 STDMETHODIMP TraceObject::AdviseSink(REFIID riid, IUnknown *punk, DWORD *pdwCookie) {
-  auto hr = ((ITfSource *)object_)->AdviseSink(riid, punk, pdwCookie);
-  auto logContent =
-      fmt::format("TSFSPY: [C]ITfSource::AdviseSink({}, _, {:x})->{:x}", getIIDName(riid), *pdwCookie, hr);
-  OutputDebugStringA(logContent.c_str());
+  auto proxyObj = new ProxyObject(punk);
+  auto v = proxyObj->CastAs(riid);
+
+  HRESULT hr;
+  if (v == nullptr) {
+    hr = ((ITfSource *)object_)->AdviseSink(riid, punk, pdwCookie);
+  } else {
+    hr = ((ITfSource *)object_)->AdviseSink(riid, (IUnknown *)v, pdwCookie);
+  }
+
+  log(LogType::Common, interfaceType_, "AdviseSink", "({}, _, 0x{:x})->0x{:x}", getIIDName(riid), ul(*pdwCookie),
+      ul(hr));
   return hr;
 }
 STDMETHODIMP TraceObject::UnadviseSink(DWORD dwCookie) {
@@ -535,6 +548,56 @@ STDMETHODIMP TraceObject::EnumUIElements(
 }
 
 #pragma endregion ITfUIElementMgr
+
+#pragma region ITfDocumentMgr
+STDMETHODIMP TraceObject::CreateContext(
+    /* [in] */ TfClientId tidOwner,
+    /* [in] */ DWORD dwFlags,
+    /* [unique][in] */ IUnknown *punk,
+    /* [out] */ ITfContext **ppic,
+    /* [out] */ TfEditCookie *pecTextStore) {
+  auto hr = ((ITfDocumentMgr *)object_)->CreateContext(tidOwner, dwFlags, punk, ppic, pecTextStore);
+  log(LogType::Common, "ITfDocumentMgr", "CreateContext", "({:x}, {}, {}, _, _)->{:x}", tidOwner, dwFlags,
+      fmt::ptr(punk), hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::Push(
+    /* [in] */ ITfContext *pic) {
+  auto hr = ((ITfDocumentMgr *)object_)->Push(pic);
+  log(LogType::Common, "ITfDocumentMgr", "Push", "(_, _)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::Pop(
+    /* [in] */ DWORD dwFlags) {
+  auto hr = ((ITfDocumentMgr *)object_)->Pop(dwFlags);
+  log(LogType::Common, "ITfDocumentMgr", "Pop", "({})->{:x}", dwFlags, hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetTop(
+    /* [out] */ ITfContext **ppic) {
+  auto hr = ((ITfDocumentMgr *)object_)->GetTop(ppic);
+  log(LogType::Common, "ITfDocumentMgr", "GetTop", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::GetBase(
+    /* [out] */ ITfContext **ppic) {
+  auto hr = ((ITfDocumentMgr *)object_)->GetBase(ppic);
+  log(LogType::Common, "ITfDocumentMgr", "GetBase", "(_)->{:x}", hr);
+  return hr;
+}
+
+STDMETHODIMP TraceObject::EnumContexts(
+    /* [out] */ IEnumTfContexts **ppEnum) {
+  auto hr = ((ITfDocumentMgr *)object_)->EnumContexts(ppEnum);
+  log(LogType::Common, "ITfDocumentMgr", "EnumContexts", "(_)->{:x}", hr);
+  return hr;
+}
+
+#pragma endregion ITfDocumentMgr
 
 #pragma region Detours
 

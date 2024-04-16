@@ -11,7 +11,8 @@ class TraceObject :
     public ITfCategoryMgr,
     public ITfLangBarItemMgr,
     public ITfCompartmentMgr,
-    public ITfUIElementMgr
+    public ITfUIElementMgr,
+    ITfDocumentMgr
 /*clang-format on*/
 {
 public:
@@ -90,9 +91,9 @@ public:
   STDMETHODIMP UnadviseItemsSink(ULONG ulCount, DWORD *pdwCookie);
 
   /* ITfCompartmentMgr */
-  STDMETHODIMP GetCompartment( REFGUID rguid,  ITfCompartment **ppcomp);
-  STDMETHODIMP ClearCompartment(TfClientId tid,  REFGUID rguid);
-  STDMETHODIMP EnumCompartments( IEnumGUID **ppEnum);
+  STDMETHODIMP GetCompartment(REFGUID rguid, ITfCompartment **ppcomp);
+  STDMETHODIMP ClearCompartment(TfClientId tid, REFGUID rguid);
+  STDMETHODIMP EnumCompartments(IEnumGUID **ppEnum);
 
   /* ITfUIElementMgr */
   STDMETHODIMP BeginUIElement(ITfUIElement *pElement, BOOL *pbShow, DWORD *pdwUIElementId);
@@ -100,6 +101,14 @@ public:
   STDMETHODIMP EndUIElement(DWORD dwUIElementId);
   STDMETHODIMP GetUIElement(DWORD dwUIELementId, ITfUIElement **ppElement);
   STDMETHODIMP EnumUIElements(IEnumTfUIElements **ppEnum);
+
+  /* ITfDocumentMgr */
+  STDMETHODIMP CreateContext(TfClientId tidOwner, DWORD dwFlags, IUnknown *punk, ITfContext **ppic, TfEditCookie *pecTextStore);
+  STDMETHODIMP Push(ITfContext *pic);
+  STDMETHODIMP Pop(DWORD dwFlags);
+  STDMETHODIMP GetTop(ITfContext **ppic);
+  STDMETHODIMP GetBase(ITfContext **ppic);
+  STDMETHODIMP EnumContexts(IEnumTfContexts **ppEnum);
 
   /* other functions */
   void *castAs(REFIID riid);

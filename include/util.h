@@ -6,6 +6,10 @@
 
 enum class LogType { System, Common, TextService, Unknown };
 
+// {63D45364-7291-4789-BF12-F5F50D68FB8C}
+static const GUID IID_ITraceObject = {0x63d45364, 0x7291, 0x4789, {0xbf, 0x12, 0xf5, 0xf5, 0xd, 0x68, 0xfb, 0x8c}};
+constexpr HRESULT E_TRACE_ALREADY_SET = 0xDEADBEEF;
+
 std::string guidToString(const GUID &guid);
 std::string getIIDName(REFIID riid);
 std::string getCLSIDName(REFCLSID rclsid);
@@ -41,3 +45,5 @@ void log(LogType logType, std::string_view objectClass, std::string_view funcNam
     OutputDebugStringA(content.c_str());
   }
 }
+
+__forceinline unsigned long ul(long n) { return static_cast<unsigned long>(n); }

@@ -3,32 +3,88 @@
 #include "util.h"
 #include <fmt/core.h>
 
-STDAPI ProxyObject::QueryInterface(REFIID riid, void **ppvObject) {
-  if (IsEqualIID(riid, IID_ITfTextInputProcessor) || IsEqualIID(riid, IID_ITfTextInputProcessorEx) ||
-      IsEqualIID(riid, IID_ITfThreadMgrEventSink) || IsEqualIID(riid, IID_ITfTextEditSink) ||
-      IsEqualIID(riid, IID_ITfTextLayoutSink) || IsEqualIID(riid, IID_ITfKeyEventSink) ||
-      IsEqualIID(riid, IID_ITfThreadFocusSink) || IsEqualIID(riid, IID_ITfCompositionSink) ||
-      IsEqualIID(riid, IID_ITfEditSession) || IsEqualIID(riid, IID_ITfActiveLanguageProfileNotifySink) ||
-      IsEqualIID(riid, IID_ITfDisplayAttributeProvider) || IsEqualIID(riid, IID_IUnknown)) {
-    *ppvObject = this;
-    AddRef();
-    auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})", getIIDName(riid));
-    OutputDebugStringA(logContent.c_str());
-    return NOERROR;
+namespace {
+
+void *castAs(REFIID riid, ProxyObject *obj) {
+#define SUPPORT_INTERFACE(Interface)                                                                                   \
+  if (IsEqualIID(riid, IID_##Interface)) {                                                                             \
+    return (Interface *)obj;                                                                                           \
   }
-  auto logContent = fmt::format("TSFSPY: [T]IUnknown::QueryInterface({})!!UNKNOWN_INTERFACE", getIIDName(riid));
-  OutputDebugStringA(logContent.c_str());
+  if (IsEqualIID(riid, IID_IUnknown))
+    return (ITfTextInputProcessor *)obj;
+
+  SUPPORT_INTERFACE(ITfTextInputProcessor)
+  SUPPORT_INTERFACE(ITfTextInputProcessorEx)
+  SUPPORT_INTERFACE(ITfThreadMgrEventSink)
+  SUPPORT_INTERFACE(ITfKeyEventSink)
+  SUPPORT_INTERFACE(ITfThreadFocusSink)
+  SUPPORT_INTERFACE(ITfCompositionSink)
+  SUPPORT_INTERFACE(ITfEditSession)
+  SUPPORT_INTERFACE(ITfActiveLanguageProfileNotifySink)
+  SUPPORT_INTERFACE(ITfDisplayAttributeProvider)
+
+  return nullptr;
+}
+
+bool isIIDSupported(REFIID riid) {
+  if (IsEqualIID(riid, IID_IUnknown)
+      /* clang-format off */
+    || IsEqualIID(riid, IID_ITfTextInputProcessor)
+    || IsEqualIID(riid, IID_ITfTextInputProcessorEx)
+    || IsEqualIID(riid, IID_ITfThreadMgrEventSink)
+    || IsEqualIID(riid, IID_ITfKeyEventSink)
+    || IsEqualIID(riid, IID_ITfThreadFocusSink) 
+    || IsEqualIID(riid, IID_ITfCompositionSink)
+    || IsEqualIID(riid, IID_ITfEditSession) 
+    || IsEqualIID(riid, IID_ITfActiveLanguageProfileNotifySink)
+    || IsEqualIID(riid, IID_ITfDisplayAttributeProvider)
+      /* clang-format on */
+  ) {
+    return true;
+  }
+  return false;
+}
+} // namespace
+
+void *ProxyObject::CastAs(REFIID riid) {
+  void *obj = castAs(riid, this);
+  if (obj == nullptr) {
+    log(LogType::TextService, "ProxyObject", "CastAs", "({})!!UNSUPPORTED_INTERFACE", getIIDName(riid));
+  }
+  return obj;
+}
+
+STDAPI ProxyObject::QueryInterface(REFIID riid, void **ppvObject) {
+  if (ppvObject == nullptr) {
+    return E_INVALIDARG;
+  }
   *ppvObject = nullptr;
-  return E_NOINTERFACE;
+
+  if (IsEqualIID(riid, IID_ITraceObject)) {
+    *ppvObject = this;
+    return E_TRACE_ALREADY_SET;
+  }
+  auto hr = ((IUnknown *)tsfObject_)->QueryInterface(IID_ITraceObject, ppvObject);
+  bool isTraceObject = hr == E_TRACE_ALREADY_SET;
+
+  hr = ((IUnknown *)tsfObject_)->QueryInterface(riid, ppvObject);
+  auto logContent =
+      formatLog(LogType::TextService, "IUnknown", "QueryInterface", "({})->0x{:x}", getIIDName(riid), ul(hr));
+  if (hr == S_OK) {
+    if (isTraceObject) {
+      // do nothing
+    } else if (isIIDSupported(riid)) {
+      *ppvObject = castAs(riid, new ProxyObject(*ppvObject));
+    } else {
+      logContent += "!!UNSUPPORTED_INTERFACE";
+    }
+  }
+  AddRef();
+  OutputDebugStringA(logContent.c_str());
+  return hr;
 }
-STDAPI_(ULONG) ProxyObject::AddRef() {
-  OutputDebugStringA("TSFSPY: [T]IUnknown::AddRef()");
-  return ((IUnknown *)tsfObject_)->AddRef();
-}
-STDAPI_(ULONG) ProxyObject::Release() {
-  OutputDebugStringA("TSFSPY: [T]IUnknown::Release()");
-  return ((IUnknown *)tsfObject_)->Release();
-}
+STDAPI_(ULONG) ProxyObject::AddRef() { return ((IUnknown *)tsfObject_)->AddRef(); }
+STDAPI_(ULONG) ProxyObject::Release() { return ((IUnknown *)tsfObject_)->Release(); }
 
 /* ITfTextInputProcessor */
 STDAPI ProxyObject::Activate(ITfThreadMgr *pThreadMgr, TfClientId tfClientId) {
@@ -45,8 +101,8 @@ STDAPI ProxyObject::Deactivate() {
 
 /* ITfTextInputProcessorEx */
 STDAPI ProxyObject::ActivateEx(ITfThreadMgr *pThreadMgr, TfClientId tfClientId, DWORD dwFlags) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})", (uint64_t)pThreadMgr,
-                                tfClientId, dwFlags);
+  auto logContent = fmt::format("TSFSPY: [T]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})",
+                                (uint64_t)pThreadMgr, tfClientId, dwFlags);
   OutputDebugStringA(logContent.c_str());
   pThreadMgr = new TraceObject(pThreadMgr, this, "ITfThreadMgr");
   return ((ITfTextInputProcessorEx *)tsfObject_)->ActivateEx(pThreadMgr, tfClientId, dwFlags);
@@ -82,8 +138,8 @@ STDAPI ProxyObject::OnPopContext(ITfContext *pContext) {
 
 /* ITfTextEditSink */
 STDAPI ProxyObject::OnEndEdit(ITfContext *pic, TfEditCookie ecReadOnly, ITfEditRecord *pEditRecord) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfTextEditSink::OnEndEdit(0x{:x}, {:x}, 0x{:x})", (uint64_t)pic, ecReadOnly,
-                                (uint64_t)pEditRecord);
+  auto logContent = fmt::format("TSFSPY: [T]ITfTextEditSink::OnEndEdit(0x{:x}, {:x}, 0x{:x})", (uint64_t)pic,
+                                ecReadOnly, (uint64_t)pEditRecord);
   OutputDebugStringA(logContent.c_str());
   return ((ITfTextEditSink *)tsfObject_)->OnEndEdit(pic, ecReadOnly, pEditRecord);
 }
@@ -122,8 +178,8 @@ STDAPI ProxyObject::OnTestKeyUp(ITfContext *pContext, WPARAM wParam, LPARAM lPar
   return ((ITfKeyEventSink *)tsfObject_)->OnTestKeyUp(pContext, wParam, lParam, pfEaten);
 }
 STDAPI ProxyObject::OnKeyUp(ITfContext *pContext, WPARAM wParam, LPARAM lParam, BOOL *pfEaten) {
-  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnKeyUp(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext, wParam,
-                                lParam, *pfEaten);
+  auto logContent = fmt::format("TSFSPY: [T]ITfKeyEventSink::OnKeyUp(0x{:x}, {:x}, {:x}, {})", (uint64_t)pContext,
+                                wParam, lParam, *pfEaten);
   OutputDebugStringA(logContent.c_str());
   return ((ITfKeyEventSink *)tsfObject_)->OnKeyUp(pContext, wParam, lParam, pfEaten);
 }
@@ -149,8 +205,8 @@ STDAPI ProxyObject::OnKillThreadFocus() {
 
 /* ITfCompositionSink */
 STDAPI ProxyObject::OnCompositionTerminated(TfEditCookie ecWrite, ITfComposition *pComposition) {
-  auto logContent =
-      fmt::format("TSFSPY: [T]ITfCompositionSink::OnCompositionTerminated({}, 0x{:x})", ecWrite, (uint64_t)pComposition);
+  auto logContent = fmt::format("TSFSPY: [T]ITfCompositionSink::OnCompositionTerminated({}, 0x{:x})", ecWrite,
+                                (uint64_t)pComposition);
   OutputDebugStringA(logContent.c_str());
   return ((ITfCompositionSink *)tsfObject_)->OnCompositionTerminated(ecWrite, pComposition);
 }

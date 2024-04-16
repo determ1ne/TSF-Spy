@@ -1,3 +1,4 @@
+#pragma once
 #include <windows.h>
 
 class ClassFactory : public IClassFactory {
