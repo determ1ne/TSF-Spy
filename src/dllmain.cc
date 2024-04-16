@@ -2,7 +2,6 @@
 #include "ditto.h"
 #include "dllglobals.h"
 #include "nlohmann/json.hpp"
-#include "trace_object.h"
 #include <fstream>
 #include <string>
 #include <vector>
@@ -109,6 +108,8 @@ __declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, L
 
     if (g_enabled) {
 
+      initCtorMap();
+
       if (!hookCoCreateInstance()) {
         OutputDebugStringW(L"TSFSPY: failed to hook CoCreateInstance");
         restoreCoCreateInstance();
@@ -135,8 +136,6 @@ __declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, L
         OutputDebugStringW(L"TSFSPY: DllGetClassObject entry point not found");
         return FALSE;
       }
-
-      initCtorMap();
 
       OutputDebugStringW(L"TSFSPY: TSF Spy loaded");
 

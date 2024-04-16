@@ -11,7 +11,8 @@
 #define STRINGIFY(x) #x
 
 namespace {
-static const GUID IID_ITfDisplayAttributeCollectionProvider = {0x3977526d, 0x1a0a, 0x435a, {0x8d, 0x06, 0xec, 0xc9, 0x51, 0x6b, 0x48, 0x4f}};
+static const GUID IID_ITfDisplayAttributeCollectionProvider = {
+    0x3977526d, 0x1a0a, 0x435a, {0x8d, 0x06, 0xec, 0xc9, 0x51, 0x6b, 0x48, 0x4f}};
 }
 
 std::string guidToString(const GUID &guid) {
@@ -186,19 +187,35 @@ std::string getIIDName(REFIID riid) {
   
   IF_TYPE_RETURN(ITfDisplayAttributeCollectionProvider)
 
-  return guidToString(riid);
+  return getGUIDName(riid);
 #undef IF_TYPE_RETURN
   /* clang-format on */
 }
 
 std::string getCLSIDName(REFCLSID rclsid) {
-#define IF_TYPE_RETURN(_type) if (IsEqualCLSID(rclsid, CLSID_##_type)) { return STRINGIFY(_type); }
+#define IF_TYPE_RETURN(_type)                                                                                          \
+  if (IsEqualCLSID(rclsid, CLSID_##_type)) {                                                                           \
+    return STRINGIFY(_type);                                                                                           \
+  }
   IF_TYPE_RETURN(TF_CategoryMgr)
 
-  return guidToString(rclsid);
+  return getGUIDName(rclsid);
 #undef IF_TYPE_RETURN
 }
 
-bool shouldLogContent(LogType logType, std::string_view objectClass, std::string_view funcName) {
-  return true;
+std::string getGUIDName(REFGUID rguid) { return guidToString(rguid); }
+
+bool shouldLogContent(LogType logType, std::string_view objectClass, std::string_view funcName) { return true; }
+
+std::string format_as(const TF_PRESERVEDKEY &preKey) {
+  return fmt::format("TF_PRESERVEDKEY{{uVKey: {:x}, uModifiers: {:x}}}", preKey.uVKey, preKey.uModifiers);
+}
+std::string format_as(const rawWstr &w) {
+  if (w.str == nullptr)
+    return std::string();
+  int srcLen = wcslen(w.str);
+  int len = WideCharToMultiByte(CP_UTF8, 0, w.str, srcLen, 0, 0, NULL, NULL);
+  std::unique_ptr<char[]> buf(new char[len + 1]);
+  WideCharToMultiByte(CP_UTF8, 0, w.str, srcLen, buf.get(), len, NULL, NULL);
+  return fmt::format("\"&{}\"", std::string_view(buf.get(), len));
 }
