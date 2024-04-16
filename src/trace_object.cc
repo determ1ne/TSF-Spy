@@ -1,4 +1,5 @@
 #include "trace_object.h"
+#include "ditto.h"
 #include "proxy_object.h"
 #include "util.h"
 #include <detours.h>
@@ -193,6 +194,7 @@ STDMETHODIMP TraceObject::UnadviseSink(DWORD dwCookie) {
 
 #pragma region ITfKeystrokeMgr
 STDMETHODIMP TraceObject::AdviseKeyEventSink(TfClientId tid, ITfKeyEventSink *pSink, BOOL fForeground) {
+  pSink = CreateOrGetDitto<ITfKeyEventSink>(pSink, IID_ITfKeyEventSink, LogType::TextService);
   auto hr = ((ITfKeystrokeMgr *)object_)->AdviseKeyEventSink(tid, pSink, fForeground);
   auto logContent = fmt::format("TSFSPY: [C]ITfKeystrokeMgr::AdviseKeyEventSink({:x}, {}, {})->{:x}", tid,
                                 fmt::ptr(pSink), intToBool(fForeground), hr);

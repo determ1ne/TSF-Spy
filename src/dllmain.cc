@@ -1,4 +1,5 @@
 #include "class_factory.h"
+#include "ditto.h"
 #include "dllglobals.h"
 #include "nlohmann/json.hpp"
 #include "trace_object.h"
@@ -134,6 +135,9 @@ __declspec(dllexport) BOOL WINAPI DllMain(HINSTANCE hInstance, DWORD dwReason, L
         OutputDebugStringW(L"TSFSPY: DllGetClassObject entry point not found");
         return FALSE;
       }
+
+      initCtorMap();
+
       OutputDebugStringW(L"TSFSPY: TSF Spy loaded");
 
       return TRUE;
