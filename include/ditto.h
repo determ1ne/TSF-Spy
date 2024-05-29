@@ -32,6 +32,10 @@ private:
   STDMETHODIMP QueryInterface(REFIID riid, void **ppvObject);                                                          \
   STDMETHODIMP_(ULONG) AddRef();                                                                                       \
   STDMETHODIMP_(ULONG) Release();
+#define DEFINE_IUNKNOWN                                                                                                \
+  STDMETHODIMP QueryInterface(REFIID riid, void **ppvObject) { return Ditto::QueryInterface(riid, ppvObject); }        \
+  STDMETHODIMP_(ULONG) AddRef() { return Ditto::AddRef(); }                                                            \
+  STDMETHODIMP_(ULONG) Release() { return Ditto::Release(); }
 
 class DTfKeyEventSink : public Ditto, public ITfKeyEventSink {
 public:
@@ -166,7 +170,32 @@ public:
   STDMETHODIMP EnumCompartments(IEnumGUID **ppEnum);
 };
 
+class DTfTextInputProcessor : public Ditto, public ITfTextInputProcessor {
+public:
+  DTfTextInputProcessor(void *object) : Ditto(object, IID_ITfTextInputProcessor, LogType::TextService) {}
+  virtual ~DTfTextInputProcessor() = default;
+
+  DEFINE_IUNKNOWN
+  STDMETHODIMP Activate(ITfThreadMgr *ptim, TfClientId tid);
+  STDMETHODIMP Deactivate(void);
+
+protected:
+  DTfTextInputProcessor(void *object, REFIID riid) : Ditto(object, riid, LogType::TextService) {}
+};
+
+class DTfTextInputProcessorEx : public DTfTextInputProcessor, public ITfTextInputProcessorEx {
+public:
+  DTfTextInputProcessorEx(void *object) : DTfTextInputProcessor(object, IID_ITfTextInputProcessorEx) {}
+  virtual ~DTfTextInputProcessorEx() = default;
+
+  DEFINE_IUNKNOWN
+  STDMETHODIMP Activate(ITfThreadMgr *ptim, TfClientId tid) { return DTfTextInputProcessor::Activate(ptim, tid); }
+  STDMETHODIMP Deactivate(void) { return DTfTextInputProcessor::Deactivate(); }
+  STDMETHODIMP ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFlags);
+};
+
 #undef DECLARE_IUNKNOWN
+#undef DEFINE_IUNKNOWN
 
 template <typename T>
 T *CreateOrGetDitto(void *object, REFIID riid, Ditto::InterfaceType type) {
