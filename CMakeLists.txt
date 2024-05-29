@@ -13,7 +13,9 @@ add_subdirectory(vendor/fmt)
 add_subdirectory(vendor/detours)
 add_subdirectory(vendor/nlohmann_json)
 
-file(GLOB_RECURSE SOURCES "src/*.cc")
+file(GLOB_RECURSE SOURCES 
+  "src/*.cc"
+  "src/**/*.cc")
 # add_executable(tsfspy ${SOURCES})
 add_library(tsfspy SHARED ${SOURCES})
 target_include_directories(tsfspy PRIVATE "include")

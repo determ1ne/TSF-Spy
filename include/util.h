@@ -1,5 +1,6 @@
 #pragma once
 #include <fmt/core.h>
+#include <fmt/format.h>
 #include <msctf.h>
 #include <string>
 #include <windows.h>
@@ -47,6 +48,22 @@ void log(LogType logType, std::string_view objectClass, std::string_view funcNam
   }
 }
 
+template <typename... Args>
+void log2(LogType logType, std::string_view funcName, const char *fmt, Args... args) {
+  auto content = fmt::format(fmt, args...);
+  char logTypeChar = 'U';
+  switch (logType) {
+    /* clang-format off */
+  case LogType::System: logTypeChar = 'S'; break;
+  case LogType::Manager: logTypeChar = 'M'; break;
+  case LogType::TextService: logTypeChar = 'T'; break;
+  default: break;
+    /* clang-format on */
+  }
+  auto result = fmt::format("TSFSPY: [{}]{}:{}", logTypeChar, funcName, content);
+  OutputDebugStringA(content.c_str());
+}
+
 __forceinline unsigned long ul(long n) { return static_cast<unsigned long>(n); }
 __forceinline bool intToBool(BOOL i) { return i != FALSE; }
 
@@ -55,3 +72,11 @@ struct rawWstr {
 };
 std::string format_as(const rawWstr &w);
 std::string format_as(const TF_PRESERVEDKEY &preKey);
+
+struct IIDHasher {
+  inline std::size_t operator()(const IID &iid) const noexcept {
+    const uint64_t *pGuid1 = reinterpret_cast<const uint64_t *>(&iid);
+    const uint64_t *pGuid2 = pGuid1 + 1;
+    return std::hash<uint64_t>()(*pGuid1) ^ std::hash<uint64_t>()(*pGuid2);
+  }
+};

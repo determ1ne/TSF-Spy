@@ -3,8 +3,6 @@
 #include <msctf.h>
 #include <windows.h>
 
-void initCtorMap();
-
 class Ditto : public IUnknown {
 public:
   using InterfaceType = LogType;
@@ -28,10 +26,6 @@ private:
   static Ditto *CreateOrGet(void *object, REFIID riid, bool checked, InterfaceType type);
 };
 
-#define DECLARE_IUNKNOWN                                                                                               \
-  STDMETHODIMP QueryInterface(REFIID riid, void **ppvObject);                                                          \
-  STDMETHODIMP_(ULONG) AddRef();                                                                                       \
-  STDMETHODIMP_(ULONG) Release();
 #define DEFINE_IUNKNOWN                                                                                                \
   STDMETHODIMP QueryInterface(REFIID riid, void **ppvObject) { return Ditto::QueryInterface(riid, ppvObject); }        \
   STDMETHODIMP_(ULONG) AddRef() { return Ditto::AddRef(); }                                                            \
@@ -42,7 +36,7 @@ public:
   DTfKeyEventSink(void *object) : Ditto(object, IID_ITfKeyEventSink, LogType::TextService) {}
   virtual ~DTfKeyEventSink() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP OnSetFocus(BOOL fForeground);
   STDMETHODIMP OnTestKeyDown(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten);
   STDMETHODIMP OnTestKeyUp(ITfContext *pic, WPARAM wParam, LPARAM lParam, BOOL *pfEaten);
@@ -56,7 +50,7 @@ public:
   DTfThreadMgr(void *object) : Ditto(object, IID_ITfThreadMgr, LogType::TextService) {}
   virtual ~DTfThreadMgr() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP Activate(TfClientId *ptid);
   STDMETHODIMP Deactivate();
   STDMETHODIMP CreateDocumentMgr(ITfDocumentMgr **ppdim);
@@ -75,7 +69,7 @@ public:
   DTfUIElementMgr(void *object) : Ditto(object, IID_ITfUIElementMgr, LogType::TextService) {}
   virtual ~DTfUIElementMgr() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP BeginUIElement(ITfUIElement *pElement, BOOL *pbShow, DWORD *pdwUIElementId);
   STDMETHODIMP UpdateUIElement(DWORD dwUIElementId);
   STDMETHODIMP EndUIElement(DWORD dwUIElementId);
@@ -88,7 +82,7 @@ public:
   DTfSource(void *object) : Ditto(object, IID_ITfSource, LogType::TextService) {}
   virtual ~DTfSource() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP AdviseSink(REFIID riid, IUnknown *punk, DWORD *pdwCookie);
   STDMETHODIMP UnadviseSink(DWORD dwCookie);
 };
@@ -98,7 +92,7 @@ public:
   DTfCategoryMgr(void *object) : Ditto(object, IID_ITfCategoryMgr, LogType::TextService) {}
   virtual ~DTfCategoryMgr() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP RegisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid);
   STDMETHODIMP UnregisterCategory(REFCLSID rclsid, REFGUID rcatid, REFGUID rguid);
   STDMETHODIMP EnumCategoriesInItem(REFGUID rguid, IEnumGUID **ppEnum);
@@ -120,7 +114,7 @@ public:
   DTfKeystrokeMgr(void *object) : Ditto(object, IID_ITfKeystrokeMgr, LogType::TextService) {}
   virtual ~DTfKeystrokeMgr() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP AdviseKeyEventSink(TfClientId tid, ITfKeyEventSink *pSink, BOOL fForeground);
   STDMETHODIMP UnadviseKeyEventSink(TfClientId tid);
   STDMETHODIMP GetForeground(CLSID *pclsid);
@@ -143,7 +137,7 @@ public:
   DTfLangBarItemMgr(void *object) : Ditto(object, IID_ITfLangBarItemMgr, LogType::TextService) {}
   virtual ~DTfLangBarItemMgr() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP EnumItems(IEnumTfLangBarItems **ppEnum);
   STDMETHODIMP GetItem(REFGUID rguid, ITfLangBarItem **ppItem);
   STDMETHODIMP AddItem(ITfLangBarItem *punk);
@@ -164,7 +158,7 @@ public:
   DTfCompartmentMgr(void *object) : Ditto(object, IID_ITfCompartmentMgr, LogType::TextService) {}
   virtual ~DTfCompartmentMgr() = default;
 
-  DECLARE_IUNKNOWN
+  DEFINE_IUNKNOWN
   STDMETHODIMP GetCompartment(REFGUID rguid, ITfCompartment **ppcomp);
   STDMETHODIMP ClearCompartment(TfClientId tid, REFGUID rguid);
   STDMETHODIMP EnumCompartments(IEnumGUID **ppEnum);
@@ -194,7 +188,6 @@ public:
   STDMETHODIMP ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFlags);
 };
 
-#undef DECLARE_IUNKNOWN
 #undef DEFINE_IUNKNOWN
 
 template <typename T>
@@ -202,5 +195,6 @@ T *CreateOrGetDitto(void *object, REFIID riid, Ditto::InterfaceType type) {
   return dynamic_cast<T *>(Ditto::CreateOrGet(object, riid, type));
 }
 
+void initCtorMap();
 bool hookCoCreateInstance();
 void restoreCoCreateInstance();
