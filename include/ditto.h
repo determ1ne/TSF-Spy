@@ -177,14 +177,14 @@ protected:
   DTfTextInputProcessor(void *object, REFIID riid) : Ditto(object, riid, LogType::TextService) {}
 };
 
-class DTfTextInputProcessorEx : public DTfTextInputProcessor, public ITfTextInputProcessorEx {
+class DTfTextInputProcessorEx : public Ditto, public ITfTextInputProcessorEx {
 public:
-  DTfTextInputProcessorEx(void *object) : DTfTextInputProcessor(object, IID_ITfTextInputProcessorEx) {}
+  DTfTextInputProcessorEx(void *object) : Ditto(object, IID_ITfTextInputProcessorEx, LogType::TextService) {}
   virtual ~DTfTextInputProcessorEx() = default;
 
   DEFINE_IUNKNOWN
-  STDMETHODIMP Activate(ITfThreadMgr *ptim, TfClientId tid) { return DTfTextInputProcessor::Activate(ptim, tid); }
-  STDMETHODIMP Deactivate(void) { return DTfTextInputProcessor::Deactivate(); }
+  STDMETHODIMP Activate(ITfThreadMgr *ptim, TfClientId tid);
+  STDMETHODIMP Deactivate(void);
   STDMETHODIMP ActivateEx(ITfThreadMgr *ptim, TfClientId tid, DWORD dwFlags);
 };
 

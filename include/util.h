@@ -37,7 +37,7 @@ std::string formatLog(LogType logType, std::string_view objectClass, std::string
   default: break;
     /* clang-format on */
   }
-  return fmt::format("TSFSPY: [{}]{}:{}{}", logTypeChar, objectClass, funcName, content);
+  return fmt::format("TSFSPY: [{}]{}::{}{}", logTypeChar, objectClass, funcName, content);
 }
 
 template <typename... Args>
@@ -46,22 +46,6 @@ void log(LogType logType, std::string_view objectClass, std::string_view funcNam
     auto content = formatLog(logType, objectClass, funcName, fmt, args...);
     OutputDebugStringA(content.c_str());
   }
-}
-
-template <typename... Args>
-void log2(LogType logType, std::string_view funcName, const char *fmt, Args... args) {
-  auto content = fmt::format(fmt, args...);
-  char logTypeChar = 'U';
-  switch (logType) {
-    /* clang-format off */
-  case LogType::System: logTypeChar = 'S'; break;
-  case LogType::Manager: logTypeChar = 'M'; break;
-  case LogType::TextService: logTypeChar = 'T'; break;
-  default: break;
-    /* clang-format on */
-  }
-  auto result = fmt::format("TSFSPY: [{}]{}:{}", logTypeChar, funcName, content);
-  OutputDebugStringA(content.c_str());
 }
 
 __forceinline unsigned long ul(long n) { return static_cast<unsigned long>(n); }
@@ -80,3 +64,6 @@ struct IIDHasher {
     return std::hash<uint64_t>()(*pGuid1) ^ std::hash<uint64_t>()(*pGuid2);
   }
 };
+
+extern const GUID IID_IDittoObject;
+#define E_IMDITTO 0xdeadbeef

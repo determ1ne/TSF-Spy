@@ -24,6 +24,8 @@ void initCtorMap() {
   g_ctorMap[IID_ITfKeystrokeMgr] = &dittoCtor<DTfKeystrokeMgr>;
   g_ctorMap[IID_ITfLangBarItemMgr] = &dittoCtor<DTfLangBarItemMgr>;
   g_ctorMap[IID_ITfCompartmentMgr] = &dittoCtor<DTfCompartmentMgr>;
+  g_ctorMap[IID_ITfTextInputProcessor] = &dittoCtor<DTfTextInputProcessor>;
+  g_ctorMap[IID_ITfTextInputProcessorEx] = &dittoCtor<DTfTextInputProcessorEx>;
 }
 
 void *castAs(Ditto *ditto, REFIID riid) {
@@ -41,6 +43,8 @@ void *castAs(Ditto *ditto, REFIID riid) {
   ADD_CAST(ITfKeystrokeMgr)
   ADD_CAST(ITfLangBarItemMgr)
   ADD_CAST(ITfCompartmentMgr)
+  ADD_CAST(ITfTextInputProcessor)
+  ADD_CAST(ITfTextInputProcessorEx)
 
   throw std::exception("Cast type not found");
 }
@@ -82,6 +86,15 @@ Ditto *Ditto::CreateOrGet(void *object, const IID &riid, bool checked, Interface
     return nullptr;
   }
 
+  if (IsEqualIID(riid, IID_ITfTextInputProcessor) || IsEqualIID(riid, IID_ITfTextInputProcessorEx)) {
+    // DebugBreak();
+  }
+
+  void *dummyPtr;
+  if (((IUnknown *)object)->QueryInterface(IID_IDittoObject, &dummyPtr) == E_IMDITTO) {
+    return nullptr;
+  }
+
   auto it = g_dittoMap.find(object);
   if (it == g_dittoMap.end()) {
     g_dittoMap[object] = std::vector<Ditto *>();
@@ -94,7 +107,8 @@ Ditto *Ditto::CreateOrGet(void *object, const IID &riid, bool checked, Interface
     }
   }
 
-  return g_ctorMap[riid](object, riid, type);
+  auto ditto = g_ctorMap[riid](object, riid, type);
+  return ditto;
 }
 
 bool Ditto::IsIIDSupported(REFIID riid) { return g_ctorMap.find(riid) != g_ctorMap.end(); }
@@ -104,6 +118,9 @@ bool Ditto::IsIIDSupported(REFIID riid) { return g_ctorMap.find(riid) != g_ctorM
 #pragma region IUnknown(Ditto)
 
 STDMETHODIMP Ditto::QueryInterface(REFIID riid, void **ppvObject) {
+  if (IsEqualIID(riid, IID_IDittoObject)) {
+    return E_IMDITTO;
+  }
   if (ppvObject == nullptr) {
     return E_INVALIDARG;
   }
@@ -143,20 +160,6 @@ static HRESULT(__stdcall *TrueCoCreateInstanceEx)(REFCLSID rclsid, IUnknown *pUn
                                                   COSERVERINFO *pServerInfo, DWORD dwCount,
                                                   MULTI_QI *pResults) = CoCreateInstanceEx;
 
-HRESULT __stdcall HookedCoCreateInstance(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid,
-                                         LPVOID *ppv) {
-  if (ppv == nullptr) {
-    return E_INVALIDARG;
-  }
-
-  MULTI_QI qi;
-  qi.pItf = NULL;
-  qi.pIID = &riid;
-  auto hr = CoCreateInstanceEx(rclsid, pUnkOuter, dwClsContext, NULL, 1, &qi);
-  *ppv = qi.pItf;
-  return hr;
-}
-
 HRESULT __stdcall HookedCoCreateInstanceEx(REFCLSID rclsid, IUnknown *pUnkOuter, DWORD dwClsContext,
                                            COSERVERINFO *pServerInfo, DWORD dwCount, MULTI_QI *pResults) {
   auto hr = TrueCoCreateInstanceEx(rclsid, pUnkOuter, dwClsContext, pServerInfo, dwCount, pResults);
@@ -172,6 +175,20 @@ HRESULT __stdcall HookedCoCreateInstanceEx(REFCLSID rclsid, IUnknown *pUnkOuter,
         hr);
     pResults->pItf = reinterpret_cast<IUnknown *>(castAs(pv, *pResults->pIID));
   }
+  return hr;
+}
+
+HRESULT __stdcall HookedCoCreateInstance(REFCLSID rclsid, LPUNKNOWN pUnkOuter, DWORD dwClsContext, REFIID riid,
+                                         LPVOID *ppv) {
+  if (ppv == nullptr) {
+    return E_INVALIDARG;
+  }
+
+  MULTI_QI qi;
+  qi.pItf = NULL;
+  qi.pIID = &riid;
+  auto hr = HookedCoCreateInstanceEx(rclsid, pUnkOuter, dwClsContext, NULL, 1, &qi);
+  *ppv = qi.pItf;
   return hr;
 }
 } // namespace

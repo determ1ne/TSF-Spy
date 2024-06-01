@@ -104,7 +104,7 @@ STDAPI ProxyObject::ActivateEx(ITfThreadMgr *pThreadMgr, TfClientId tfClientId, 
   auto logContent = fmt::format("TSFSPY: [T]ITfTextInputProcessorEx::ActivateEx(0x{:x}, {:x}, {:x})",
                                 (uint64_t)pThreadMgr, tfClientId, dwFlags);
   OutputDebugStringA(logContent.c_str());
-  pThreadMgr = CreateOrGetDitto<ITfThreadMgr>(pThreadMgr, IID_ITfThreadMgr, LogType::Manager);
+  // pThreadMgr = CreateOrGetDitto<ITfThreadMgr>(pThreadMgr, IID_ITfThreadMgr, LogType::Manager);
   return ((ITfTextInputProcessorEx *)tsfObject_)->ActivateEx(pThreadMgr, tfClientId, dwFlags);
 }
 

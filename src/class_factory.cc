@@ -1,6 +1,6 @@
 #include "dllglobals.h"
 #include "class_factory.h"
-#include "proxy_object.h"
+#include "ditto.h"
 #include "util.h"
 #include <fmt/core.h>
 
@@ -40,12 +40,13 @@ STDAPI ClassFactory::CreateInstance(IUnknown *pUnkOuter, REFIID riid, void **ppv
   }
 
   if (g_enabled) {
-    auto logContent = fmt::format("TSFSPY: ClassFactory::CreateInstance(_, {}, _)", getIIDName(riid));
+    auto logContent = fmt::format("TSFSPY: ClassFactory::CreateInstance0(_, {}, _)", getIIDName(riid));
     OutputDebugStringA(logContent.c_str());
-    auto *proxyObj = new ProxyObject(pv);
-    hr = proxyObj->QueryInterface(riid, ppv);
-    proxyObj->Release();
-    *ppv = proxyObj;
+
+    auto ditto = Ditto::CreateOrGet(pv, riid, LogType::TextService);
+    hr = ditto->QueryInterface(riid, ppv);
+    ditto->Release();
+
     return S_OK;
   }
 
